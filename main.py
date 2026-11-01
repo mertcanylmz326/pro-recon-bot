@@ -109,11 +109,11 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* AR Kamera Stilleri */
-        .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 20px rgba(56,189,248,0.4); }
+        /* Gelişmiş Cyberpunk AR HUD Stilleri */
+        .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; }
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .ar-hud { position: absolute; top: 15px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #00ff66; z-index: 10; }
+        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -177,23 +177,26 @@ HTML_TEMPLATE = """
             <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
         </div>
 
-        <!-- YENİ: AR Navigasyon & Arka Kamera Modülü -->
+        <!-- AR Navigasyon & Gelişmiş HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 Arka Kamera AR Navigasyon & Yol Analizi (OpenCV Web AR)</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Arka kamerayı açarak harita rotasını ekranda takip edin; çukur, taş ve tümsekleri yapay zeka ile es geçin.</p>
+            <h3>🧭 Arka Kamera 3D Perspektif AR Navigasyon & Yol Asistanı</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Arka kamerayı açarak 3D neon şerit rotayı takip edin; çukur, taş ve bozuk yolları yapay zeka HUD çerçeveleriyle es geçin.</p>
             
             <div class="form-group">
-                <label>Hedef Konum / Nokta:</label>
-                <input type="text" id="arDestination" value="Saha Operasyon Noktası B-2">
+                <label>Hedef Operasyon / Konum:</label>
+                <input type="text" id="arDestination" value="Saha Bölge Komuta Merkezi B-2">
             </div>
             
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button class="success" onclick="startARCamera()">📸 Kamerayı Aç & AR Başlat</button>
-                <button class="danger" onclick="stopARCamera()">🛑 Kamerayı Kapat</button>
+                <button class="success" onclick="startARCamera()">📸 Arka Kamerayı Aç & AR Başlat</button>
+                <button class="danger" onclick="stopARCamera()">🛑 Sistemi Kapat</button>
             </div>
 
             <div class="ar-container">
-                <div class="ar-hud" id="arHudText">Durum: Kamera Bekleniyor...</div>
+                <div class="ar-hud">
+                    <span id="arHudText">Durum: Bekleniyor...</span>
+                    <span id="arTelemetry" style="color: #38bdf8;">GPS: OK | HUD: ACTIVE</span>
+                </div>
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
@@ -315,7 +318,7 @@ HTML_TEMPLATE = """
             <h3>Operations Analytics</h3>
             <div class="dashboard-row">
                 <div class="dashboard-card"><h4>Security Grade Distribution</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
-                <div class="dashboard-card"><h4>WAF ProtectionStatus</h4><canvas id="wafChart" style="max-height: 180px;"></canvas></div>
+                <div class="dashboard-card"><h4>WAF Protection Status</h4><canvas id="wafChart" style="max-height: 180px;"></canvas></div>
             </div>
             <h3>Archived Targets</h3>
             <div id="databaseTableContainer">No archived data.</div>
@@ -337,7 +340,7 @@ HTML_TEMPLATE = """
             if(tabId !== 'arNavTab') stopARCamera();
         }
 
-        // --- AR NAVİGASYON & ARKA KAMERA MOTORU ---
+        // --- GELİŞMİŞ CYBERPUNK 3D PERSPEKTİF AR NAVİGASYON MOTORU ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -345,13 +348,12 @@ HTML_TEMPLATE = """
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
 
             try {
-                // Arka kamerayı zorunlu kıl (facingMode: environment)
+                // Arka kamerayı zorunlu kıl
                 arStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: { exact: "environment" } }, 
                     audio: false 
                 });
             } catch (err) {
-                // Eğer cihazda arka kamera bulunamazsa varsayılan kameraya geç
                 try {
                     arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 } catch (e) {
@@ -361,10 +363,9 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "GPS Harita Eşlendi: Rota Hesaplanıyor...";
-            speakVoice("AR Navigasyon başlatıldı. Rota oluşturuluyor, hedef: " + dest);
+            hud.innerText = "HUD Kalibre Edildi: Rota Aktif";
+            speakVoice("AR Gözlük arayüzü başlatıldı. Hedef: " + dest);
 
-            // Canvas AR çizim döngüsü
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
             let ctx = canvas.getContext('2d');
@@ -373,40 +374,70 @@ HTML_TEMPLATE = """
             arInterval = setInterval(() => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 1. AR Yol / Rota Çizgisi Çiz (Neon Mavi/Yeşil Rehber Çizgi)
+                let w = canvas.width;
+                let h = canvas.height;
+
+                // 1. Köşe Nişangahları (Askeri HUD Çerçevesi)
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
+                ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
+
+                // 2. 3D Perspektifli Neon Rota Şeridi
                 ctx.beginPath();
                 ctx.lineWidth = 6;
-                ctx.strokeStyle = '#00ff66';
+                ctx.strokeStyle = 'rgba(0, 255, 102, 0.85)';
                 ctx.shadowColor = '#00ff66';
-                ctx.shadowBlur = 12;
+                ctx.shadowBlur = 18;
                 
-                let startX = canvas.width / 2;
-                let startY = canvas.height;
-                let endX = canvas.width / 2 + Math.sin(step * 0.05) * 40;
-                let endY = canvas.height / 2;
+                let centerX = w / 2;
+                let bottomY = h;
+                let horizonY = h * 0.5; // Ufuk çizgisi
                 
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
+                ctx.moveTo(centerX - 50, bottomY);
+                ctx.lineTo(centerX + 50, bottomY);
+                ctx.lineTo(centerX + 15 + Math.sin(step * 0.05) * 20, horizonY);
+                ctx.lineTo(centerX - 15 + Math.sin(step * 0.05) * 20, horizonY);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 255, 102, 0.3)';
+                ctx.fill();
                 ctx.stroke();
 
-                // 2. Simüle Edilmiş Zemin/Çukur Tespiti (OpenCV Tarzı Sınır Kutuları)
-                if (step % 40 === 0) {
-                    let hazardX = Math.random() * (canvas.width - 100);
-                    let hazardY = canvas.height / 2 + Math.random() * 100;
-                    ctx.strokeStyle = '#ef4444'; // Kırmızı tehlike çukuru
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(hazardX, hazardY, 80, 50);
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
-                    ctx.fillRect(hazardX, hazardY, 80, 50);
+                // 3. Yol Üzerinde İlerleyen Navigasyon Okları
+                let arrowY = bottomY - ((step * 6) % (bottomY - horizonY));
+                if (arrowY > horizonY) {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, arrowY - 12);
+                    ctx.lineTo(centerX - 10, arrowY + 6);
+                    ctx.lineTo(centerX + 10, arrowY + 6);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // 4. Çukur / Bozuk Zemin Tespit Simülasyonu
+                if (step % 55 === 0) {
+                    let hazardX = w * 0.15 + Math.random() * (w * 0.5);
+                    let hazardY = h * 0.55 + Math.random() * (h * 0.25);
                     
-                    hud.innerText = "⚠️ DİKKAT: Zemin Bozuk / Çukur Tespit Edildi! Güzergah Değiştiriliyor.";
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(hazardX, hazardY, 100, 65);
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                    ctx.fillRect(hazardX, hazardY, 100, 65);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '11px Courier New';
+                    ctx.fillText('⚠️ HAZARD / ÇUKUR', hazardX + 6, hazardY - 8);
+                    
+                    hud.innerText = "⚠️ DİKKAT: Zemin Bozuk, Kaçış Manevrası Yapın!";
                     speakVoice("Dikkat, önünüzde çukur var, sağdan devam edin.");
-                } else if (step % 40 === 20) {
-                    hud.innerText = "✅ Rota Üzerindesiniz. Hedefe Kalan: 120m";
+                } else if (step % 55 === 25) {
+                    hud.innerText = "🧭 Rota Güvenli | Mesafe: 95m | Hız: 28 km/s";
                 }
 
                 step++;
-            }, 500);
+            }, 100);
         }
 
         function stopARCamera() {
@@ -420,7 +451,7 @@ HTML_TEMPLATE = """
             }
             let video = document.getElementById('arVideo');
             video.srcObject = null;
-            document.getElementById('arHudText').innerText = "Durum: Kamera Kapalı";
+            document.getElementById('arHudText').innerText = "Durum: Sistem Kapalı";
         }
 
         function speakVoice(text) {
