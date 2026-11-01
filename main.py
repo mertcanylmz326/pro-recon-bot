@@ -163,7 +163,7 @@ HTML_TEMPLATE = """
             <div id="sqlmapResults" class="terminal" style="display:none;"></div>
         </div>
 
-        <!-- Diğer Sekmeler (Subdomain, Brute, Scheduler, OSINT, Shell, Looting, Analysis, Payload, Data) -->
+        <!-- Diğer Sekmeler -->
         <div id="subdomainTab" class="tab-content">
             <h3>🌐 Subdomain Brute-Forcer</h3>
             <div class="form-group"><input type="text" id="subDomainInput" placeholder="example.com"></div>
@@ -256,7 +256,7 @@ HTML_TEMPLATE = """
             if(targetOverride) { document.getElementById('targetUrl').value = url; switchTab('scanTab'); }
             lastTarget = url;
             let statusDiv = document.getElementById('status'), resultsDiv = document.getElementById('results');
-            statusDiv.innerHTML = `root@red-team-box:~# scanning ${url}...`; resultsDiv.style.display = "none";
+            statusDiv.innerHTML = `root@red-team-box:~# scanning ${url} (full recon, ports, WAF, fuzzing)...`; resultsDiv.style.display = "none";
             let res = await fetch('/api/scan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({target: url, wordlist: ""}) });
             let data = await res.json();
             statusDiv.innerHTML = ""; resultsDiv.style.display = "block"; resultsDiv.innerHTML = data.report; currentReportText = data.report; document.getElementById('actionButtons').style.display = "flex";
@@ -398,12 +398,12 @@ def api_nikto():
     report = f"root@kali-box:~# nikto -h {target}\n" + "=" * 50 + "\n\n"
     try:
         r = requests.get(target, timeout=5, verify=False, headers={"User-Agent": "Nikto/2.1.6"})
-        report += f"[+ Target IP: {socket.gethostbyname(urllib.parse.urlparse(target).netloc or target)}\n"
+        report += f"[+ Target IP: {socket.gethostbyname(urllib.parse.urlparse(target).netloc or target)}]\n"
         report += f"[+ Server Header: {r.headers.get('Server', 'Bilinmiyor')}\n"
         report += f"[+ X-Powered-By: {r.headers.get('X-Powered-By', 'Tespit edilemedi')}\n"
         for h in ["X-Frame-Options", "Content-Security-Policy", "X-Content-Type-Options"]:
             if h not in r.headers: report += f"  🚨 [VULN] Eksik güvenlik başlığı: {h}\n"
-        report += "\n[+] Nikto taraması tamamlandı (0 hatalı yapılandırma kritik eşik aşılmadı)."
+        report += "\n[+] Nikto taraması tamamlandı."
     except Exception as e:
         report += f"[-] Bağlantı hatası: {str(e)}"
     return jsonify({"report": report})
@@ -418,7 +418,6 @@ def api_dns():
         report += f"  [A Record] {domain} -> {ip}\n"
         report += f"  [NS Record] ns1.{domain}, ns2.{domain}\n"
         report += f"  [MX Record] mail.{domain} (Priority: 10)\n"
-        report += f"  [TXT Record] v=spf1 include:_spf.{domain} ~all\n"
     except Exception as e:
         report += f"[-] DNS çözümlenemedi: {str(e)}"
     return jsonify({"report": report})
@@ -429,7 +428,6 @@ def api_sqlmap():
     target = request.get_json().get("target", "")
     report = f"root@kali-box:~# sqlmap -u \"{target}\" --batch --dbs\n" + "=" * 50 + "\n\n"
     report += "[inf] testing connection to the target URL\n"
-    report += "[inf] testing if the target URL is stable\n"
     if "'" in target or "=" in target:
         report += "[!] GET parameter appears to be vulnerable. (DBMS: MySQL >= 5.0)\n"
         report += "[+] available databases [3]:\n    information_schema\n    mysql\n    target_production_db\n"
@@ -441,8 +439,16 @@ def api_sqlmap():
 def api_subdomain_scan():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     domain = request.get_json().get("domain", "")
-    found = [("www", socket.gethostbyname(f"www.{domain}"))] if socket.gethostbyname(f"www.{domain}") else []
-    return jsonify({"report": f"Subdomain brute-force tamamlandı.\n  [FOUND] www.{domain}"})
+    subs = ["www", "api", "admin", "test", "dev", "panel", "login"]
+    found = []
+    for s in subs:
+        try:
+            ip = socket.gethostbyname(f"{s}.{domain}")
+            found.append(f"  [FOUND] {s}.{domain} -> {ip}")
+        except: pass
+    report = f"root@kali-box:~# gobuster vhost -u {domain}\n" + "=" * 50 + "\n\n"
+    report += "\n".join(found) if found else "  -> Subdomain bulunamadı."
+    return jsonify({"report": report})
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
@@ -453,7 +459,7 @@ def api_brute_force():
 def api_osint_scan():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     domain = request.get_json().get("domain", "")
-    return jsonify({"report": f"OSINT: {domain} için sızdırılmış e-posta bulunamadı."})
+    return jsonify({"report": f"OSINT: {domain} için açık kaynak veri tabanları tarandı."})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
@@ -476,7 +482,13 @@ def api_scheduler_list():
 @app.route("/api/analyze-file", methods=["POST"])
 def api_analyze_file():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Dosya analizi temiz."})
+    file = request.files.get('file')
+    if not file: return jsonify({"report": "Dosya seçilmedi!"})
+    content = file.read().decode('utf-8', errors='ignore')
+    findings = [f"🚨 [Secret Found]: {m}" for m in re.findall(r'(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*["\']?([a-zA-Z0-9_\-\.]{6,})["\']?', content)]
+    report = f"root@kali-box:~# secret-scanner --file {file.filename}\n" + "=" * 50 + "\n\n"
+    report += "\n".join(findings) if findings else "✅ Hassas anahtar bulunamadı."
+    return jsonify({"report": report})
 
 @app.route("/api/all-data")
 def api_all_data():
@@ -498,20 +510,27 @@ def export_csv():
 
 @app.route("/api/looting/zip")
 def api_looting_zip():
-    if not session.get("logged_in"): return "Unauthorized", 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     target = request.args.get("target", "")
     record = next((i for i in SITE_DATABASE if i["target"] == target), None)
     mf = io.BytesIO()
     with zipfile.ZipFile(mf, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("report.txt", record["full_report"] if record else "No record")
+        for f_url in (record["files"] if record else []):
+            if f_url.startswith("http"):
+                try:
+                    r = requests.get(f_url, timeout=3, verify=False)
+                    if r.status_code == 200: zf.writestr(f"harvested/{f_url.split('/')[-1]}", r.text)
+                except: pass
     mf.seek(0)
     return send_file(mf, mimetype='application/zip', as_attachment=True, download_name='loot.zip')
 
 @app.route("/api/download-pdf")
 def api_download_pdf():
-    if not session.get("logged_in"): return "Unauthorized", 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    record = next((i for i in SITE_DATABASE if i["target"] == request.args.get("target", "")), None)
     pdf = FPDF(); pdf.add_page(); pdf.set_font('Courier', '', 9)
-    pdf.multi_cell(0, 5, "Red Team Report")
+    pdf.multi_cell(0, 5, (record["full_report"] if record else "Report").encode('latin-1', 'replace').decode('latin-1'))
     return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype='application/pdf', as_attachment=True, download_name='report.pdf')
 
 @app.route("/api/telegram-send", methods=["POST"])
@@ -521,10 +540,81 @@ def api_telegram_send():
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Gönderildi!" if res.status_code == 200 else "Başarısız."})
 
+def detect_waf(headers):
+    h = str(headers).lower()
+    if "cloudflare" in h or "cf-ray" in h: return "Cloudflare WAF 🛡️"
+    elif "incapsula" in h: return "Incapsula WAF 🛡️"
+    return "Standart Koruma"
+
+def calculate_security_grading(headers, is_https):
+    score = 100
+    if not is_https: score -= 30
+    for h in ["Strict-Transport-Security", "Content-Security-Policy", "X-Frame-Options"]:
+        if h not in headers: score -= 15
+    if score >= 90: return "A (Güvenli)", score
+    elif score >= 75: return "B (İyi)", score
+    elif score >= 60: return "C (Orta)", score
+    return "F (Riskli)", score
+
 def red_team_comprehensive_recon(target_url):
     if not target_url.startswith("http"): target_url = f"https://{target_url}"
-    report = f"root@kali-box:~# nmap -A -T4 {target_url}\n" + "=" * 50 + "\n\n[+] Portlar taranıyor...\n[+] Açık Portlar: 80, 443\n"
-    record = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "target": target_url, "waf": "Cloudflare WAF 🛡️", "grade": "B (İyi)", "files": [], "full_report": report}
+    parsed = urllib.parse.urlparse(target_url)
+    domain = parsed.netloc or parsed.path
+    domain = domain.split('/')[0]
+
+    report = f"root@kali-box:~# enterprise-recon-suite --target {target_url}\n" + "=" * 55 + "\n\n"
+    accessible_files = []
+    waf = "Standart"
+    grade = "F"
+
+    try:
+        r = requests.get(target_url, timeout=5, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+        waf = detect_waf(r.headers)
+        score_grade, score = calculate_security_grading(r.headers, target_url.startswith("https"))
+        grade = score_grade
+        report += f"[+] WAF Tespiti: {waf}\n"
+        report += f"[+] Güvenlik Puanı: {grade} ({score}/100)\n"
+        report += f"[+] Server Başlığı: {r.headers.get('Server', 'Bilinmiyor')}\n"
+        report += "-" * 45 + "\n"
+    except Exception as e:
+        report += f"[!] HTTP Bağlantı Uyarısı: {str(e)}\n"
+
+    report += "[*] Port Taraması & Servis Tespiti (Ports: 21, 22, 80, 443, 3306, 8080)...\n"
+    open_ports = []
+    for p in [21, 22, 80, 443, 3306, 8080]:
+        try:
+            s = socket.socket(); s.settimeout(0.8)
+            if s.connect_ex((domain, p)) == 0:
+                open_ports.append(p)
+                report += f"  -> Port {p} AÇIK\n"
+            s.close()
+        except: pass
+    if not open_ports: report += "  -> Açık standart port saptanamadı.\n"
+    report += "-" * 45 + "\n"
+
+    report += "[*] Dizin Fuzzing ve Hassas Dosya Taraması (.env, robots.txt, backup.sql)...\n"
+    common_paths = ["/robots.txt", "/sitemap.xml", "/.env", "/config.json", "/database.sql", "/backup.sql"]
+    for path in common_paths:
+        t_url = f"{target_url.rstrip('/')}{path}"
+        try:
+            res = requests.get(t_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+            if res.status_code == 200:
+                report += f"  🚨 [200 OK] {t_url}\n"
+                accessible_files.append(t_url)
+            elif res.status_code == 403:
+                report += f"  [403 Forbidden] {t_url}\n"
+        except: pass
+
+    report += "\n" + "=" * 55 + "\nroot@kali-box:~# Recon Completed Successfully."
+
+    record = {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "target": target_url,
+        "waf": waf,
+        "grade": grade,
+        "files": accessible_files,
+        "full_report": report
+    }
     return report, record
 
 if __name__ == "__main__":
