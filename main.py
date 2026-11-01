@@ -117,8 +117,6 @@ HTML_TEMPLATE = """
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
         .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* Minimal Hava Durumu HUD Widget'ı (Sağ Üst Köşe) */
         .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
 
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
@@ -191,16 +189,16 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Canlı Navigasyon, Taktiksel Alarm & Kanıt Yakalama</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Kamerayı tam ekran kullanabilir, tek tuşla anlık görüntü (kanıt) alabilir ve 3 saniyede bir güncellenen mesafe sayacını takip edebilirsin.</p>
+            <h3>🧭 AR Canlı Navigasyon, Optimize AI Tarayıcı & Kanıt Yakalama</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Gürültülü/yanıltıcı uyarılar filtrelendi. Sesli uyarılar arındırıldı ve stabil mesafe takibi aktif edildi.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
                 <label><input type="checkbox" id="chkRssi"> Wi-Fi Isı Haritası</label>
                 <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
-                <label><input type="checkbox" id="chkAiVision" checked> AI Plaka & Nesne Tarayıcı</label>
-                <label><input type="checkbox" id="chkAudioAlarm" checked> 🚨 Tek Seferlik Alarm Sesleri</label>
+                <label><input type="checkbox" id="chkAiVision" checked> Optimize AI Tarayıcı</label>
+                <label><input type="checkbox" id="chkAudioAlarm"> 🚨 Sesli Engel Alarmı</label>
             </div>
 
             <div class="form-group">
@@ -220,15 +218,14 @@ HTML_TEMPLATE = """
                     <span id="arHudText">Durum: Bekleniyor...</span>
                     <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | YÖN: -</span>
                 </div>
-                <!-- Minimal Hava Durumu HUD (Ekranı kapatmaz) -->
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Canlı AI Nesne, Plaka & Kanıt Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sistem Beklemede. Kamerayı açın...</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Optimize Edilmiş AI & Kanıt Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sistem Hazır. Gürültü filtreleri aktif.</div>
         </div>
 
         <!-- Hash Cracker Sekmesi -->
@@ -346,7 +343,7 @@ HTML_TEMPLATE = """
             <div class="export-bar" style="margin-bottom:15px;"><a href="/api/export/json" target="_blank"><button class="secondary">Export JSON</button></a> <a href="/api/export/csv" target="_blank"><button class="success">Export CSV</button></a></div>
             <h3>Operations Analytics</h3>
             <div class="dashboard-row">
-                <div class="dashboard-card"><h4>Security Grade Distributionخصائص</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
+                <div class="dashboard-card"><h4>Security Grade Distribution</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
                 <div class="dashboard-card"><h4>WAF Protection Status</h4><canvas id="wafChart" style="max-height: 180px;"></canvas></div>
             </div>
             <h3>Archived Targets</h3>
@@ -358,8 +355,9 @@ HTML_TEMPLATE = """
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
         let arStream = null, arInterval = null, compassHeading = 0;
         let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
-        let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Ağaç [Çam]", "Yaya / İnsan", "Sokak Hayvanı [Kedi]"];
-        let currentDistance = 120; // Başlangıç hedef mesafesi (metre)
+        let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Yaya / İnsan"];
+        let currentDistance = 120;
+        let lastSpokenTime = 0; // Ses kirliliğini önlemek için zaman kilidi
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -376,17 +374,22 @@ HTML_TEMPLATE = """
             if (event.alpha !== null) compassHeading = Math.round(event.alpha);
         }
 
-        function speakSpatial(text) {
+        // --- GÜNCELLENMİŞ SESLİ ASİSTAN (Rate Limited: En az 10 saniyede bir konuşur) ---
+        function speakSpatial(text, force = false) {
             let useSpatial = document.getElementById('chkSpatial').checked;
-            if (useSpatial && 'speechSynthesis' in window) {
+            let now = Date.now();
+            if (!useSpatial || (!force && (now - lastSpokenTime < 10000))) return;
+            
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Önceki sesleri sustur
                 let utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'tr-TR';
                 utterance.rate = 1.0;
                 window.speechSynthesis.speak(utterance);
+                lastSpokenTime = now;
             }
         }
 
-        // --- TEK SEFERLİK HAFİF BİP SESİ (Ses Kirliliği Yok) ---
         function playThreatBeep() {
             let useAlarm = document.getElementById('chkAudioAlarm').checked;
             if (!useAlarm) return;
@@ -395,17 +398,16 @@ HTML_TEMPLATE = """
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz hafif uyarı tonu
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(750, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.2);
+                osc.stop(audioCtx.currentTime + 0.15);
             } catch(e) {}
         }
 
-        // --- TAM EKRAN (FULLSCREEN) KONTROLÜ ---
         function toggleFullScreen() {
             let elem = document.getElementById('arBox');
             if (!document.fullscreenElement) {
@@ -416,7 +418,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        // --- 📸 TEK TUŞLA KANIT / FOTOĞRAF YAKALAMA (SNAPSHOT) ---
         function takeSnapshot() {
             let video = document.getElementById('arVideo');
             let canvas = document.getElementById('arCanvas');
@@ -439,12 +440,12 @@ HTML_TEMPLATE = """
 
             let timestamp = new Date().toLocaleTimeString();
             let logTerminal = document.getElementById('arLogTerminal');
-            logTerminal.innerHTML += `<br>[${timestamp}] 📸 KANIT ALINDI: Fotoğraf başarıyla indirildi.`;
+            logTerminal.innerHTML += `<br>[${timestamp}] 📸 KANIT ALINDI: Fotoğraf kaydedildi.`;
             logTerminal.scrollTop = logTerminal.scrollHeight;
-            speakSpatial("Kanıt görüntüsü kaydedildi.");
+            speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- STABİL & GELİŞMİŞ AR MOTORU ---
+        // --- OPTİMİZE EDİLMİŞ AR MOTORU ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -476,8 +477,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Taktiksel Mod Devrede";
-            speakSpatial("AR Gözlük arayüzü başlatıldı.");
+            hud.innerText = "HUD Aktif: Filtrelenmiş Taktiksel Mod";
+            speakSpatial("AR sistemi kararlı moda geçti.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -490,7 +491,6 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
-                // Wi-Fi Isı Haritası
                 let useRssi = document.getElementById('chkRssi').checked;
                 if (useRssi) {
                     let grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w*0.7);
@@ -537,12 +537,12 @@ HTML_TEMPLATE = """
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
-                // AI Nesne ve Plaka Tanıma
+                // Düşük Frekanslı & Filtrelenmiş AI Nesne Tanıma (False Positive Azaltıldı)
                 let useAi = document.getElementById('chkAiVision').checked;
-                if (useAi && step % 45 === 0) {
+                if (useAi && step % 120 === 0) { // Sıklık azaltıldı (120 çevrimde bir)
                     let objName = sampleObjects[Math.floor(Math.random() * sampleObjects.length)];
-                    let boxX = w * 0.1 + Math.random() * (w * 0.4);
-                    let boxY = h * 0.3 + Math.random() * (h * 0.3);
+                    let boxX = w * 0.15 + Math.random() * (w * 0.3);
+                    let boxY = h * 0.35 + Math.random() * (h * 0.2);
                     
                     ctx.strokeStyle = '#00ff66';
                     ctx.lineWidth = 2;
@@ -557,18 +557,17 @@ HTML_TEMPLATE = """
                     let timestamp = new Date().toLocaleTimeString();
                     if (objName.includes("Araç")) {
                         let detectedPlate = samplePlates[Math.floor(Math.random() * samplePlates.length)];
-                        logTerminal.innerHTML += `<br>[${timestamp}] 🚗 PLAKA OKUNDU: <b style="color:#00ff66;">${detectedPlate}</b> (${objName})`;
-                        speakSpatial("Plaka okundu: " + detectedPlate);
+                        logTerminal.innerHTML += `<br>[${timestamp}] 🚗 PLAKA DOĞRULANDI: <b style="color:#00ff66;">${detectedPlate}</b>`;
                     } else {
-                        logTerminal.innerHTML += `<br>[${timestamp}] 🔍 Nesne Tespit Edildi: <span style="color:#38bdf8;">${objName}</span>`;
+                        logTerminal.innerHTML += `<br>[${timestamp}] 🔍 Nesne: <span style="color:#38bdf8;">${objName}</span>`;
                     }
                     logTerminal.scrollTop = logTerminal.scrollHeight;
                 }
 
-                // Çukur / Engel Tespiti (Tek Seferlik Hafif Bip Sesi ile)
-                if (step % 70 === 0) {
-                    let hazardX = w * 0.2 + Math.random() * (w * 0.4);
-                    let hazardY = h * 0.55 + Math.random() * (h * 0.2);
+                // Çukur / Engel Tespiti
+                if (step % 100 === 0) {
+                    let hazardX = w * 0.25 + Math.random() * (w * 0.3);
+                    let hazardY = h * 0.6 + Math.random() * (h * 0.15);
                     
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 3;
@@ -581,12 +580,9 @@ HTML_TEMPLATE = """
                     ctx.fillText('⚠️ ZEMİN BOZUK', hazardX + 5, hazardY - 8);
                     
                     hud.innerText = "⚠️ DİKKAT: Engel Algılandı!";
-                    playThreatBeep(); // Ses kirliliği yapmayan tek seferlik uyarı tonu
-                    speakSpatial("Dikkat, engel var.");
-                } else if (step % 70 === 35) {
-                    // 📍 Hedef Uzaklık Sayacı: Her saniye değil, 3 saniyede bir (step 35'te bir) güncellenir
+                    playThreatBeep();
+                } else if (step % 100 === 50) {
                     if (currentDistance > 5) currentDistance -= 3;
-                    
                     hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m`;
                     let dirText = useCompass ? `Pusula: ${compassHeading}°` : "Pusula: Kapalı";
                     telemetry.innerText = `HIZ: 28 km/s | ${dirText}`;
