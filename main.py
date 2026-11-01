@@ -6,6 +6,7 @@ import urllib.parse
 import requests
 import threading
 import subprocess
+from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify
 from datetime import datetime
 
@@ -75,7 +76,7 @@ HTML_TEMPLATE = """
             
             if(!url) { alert('Lütfen geçerli bir hedef gir!'); return; }
             
-            statusDiv.innerHTML = "⏳ Linux altyapısı ve komutları çalıştırılıyor (WHOIS, DNS, Subdomain, Portlar ve A-Z Dosyalar taranıyor)...";
+            statusDiv.innerHTML = "⏳ Gelişmiş modüller çalıştırılıyor (Dizin Parser, Subdomain Durum Kontrolü, Robots.txt analizi)...";
             resultsDiv.style.display = "none";
             actionButtons.style.display = "none";
             resultsDiv.innerHTML = "";
@@ -103,7 +104,7 @@ HTML_TEMPLATE = """
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'a_z_recon_report.txt';
+            a.download = 'a_z_advanced_recon_report.txt';
             a.click();
         }
 
@@ -167,13 +168,28 @@ def api_telegram_send():
     res = requests.post(url, json=payload, timeout=10)
     return jsonify({"status": "✅ Rapor Telegram'a gönderildi!" if res.status_code == 200 else "❌ Gönderim başarısız."})
 
-# --- LINUX & PYTHON A-Z KEŞİF MOTORU ---
+# --- GELİŞMİŞ LİNUX & PYTHON A-Z KEŞİF MOTORU ---
 def run_linux_command(cmd):
     try:
         output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5)
         return output.decode('utf-8', errors='ignore')
     except Exception as e:
         return f"Çalıştırılamadı / Bulunamadı: {str(e)}"
+
+def parse_directory_listing(url):
+    """Açık dizinlerin (Directory Listing) içindeki dosyaları parse eder"""
+    found_files = []
+    try:
+        r = requests.get(url, timeout=4, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code == 200 and ("<a href" in r.text or "Index of" in r.text):
+            soup = BeautifulSoup(r.text, 'html.parser')
+            for a in soup.find_all('a'):
+                href = a.get('href')
+                if href and href not in ["../", "./", "/"]:
+                    found_files.append(href)
+    except:
+        pass
+    return found_files
 
 def az_comprehensive_recon(target_url):
     if not target_url.startswith("http"):
@@ -183,20 +199,20 @@ def az_comprehensive_recon(target_url):
     domain = parsed.netloc or parsed.path
     domain = domain.split('/')[0]
     
-    report = f"🎯 A-Z KAPSAMLI LİNUX & GÜVENLİK KEŞİF RAPORU: {target_url}\n" + "—" * 60 + "\n\n"
+    report = f"🎯 A-Z GELİŞMİŞ KEŞİF & ANALİZ RAPORU: {target_url}\n" + "—" * 60 + "\n\n"
     
-    # 1. IP ve Nslookup (Linux Komutu)
-    report += "🌐 1. DNS & IP BİLGİLERİ (Linux Nslookup):\n"
+    # 1. DNS & IP
+    report += "🌐 1. DNS & IP BİLGİLERİ (Nslookup):\n"
     nslookup_out = run_linux_command(f"nslookup {domain}")
     report += f"{nslookup_out}\n" + "—" * 40 + "\n"
 
-    # 2. Whois Bilgileri (Linux Whois)
-    report += "📋 2. WHOIS KAYIT ANALİZİ:\n"
+    # 2. Whois
+    report += "📋 2. WHOIS ANALİZİ:\n"
     whois_out = run_linux_command(f"whois {domain}")
-    if len(whois_out) > 1500: whois_out = whois_out[:1500] + "\n[Whois çıktısı kısaltıldı...]"
+    if len(whois_out) > 1200: whois_out = whois_out[:1200] + "\n[Kısaltıldı...]"
     report += f"{whois_out}\n" + "—" * 40 + "\n"
 
-    # 3. Açık Port Taraması
+    # 3. Port Taraması
     report += "🔍 3. KRİTİK PORT KONTROLÜ:\n"
     common_ports = [21, 22, 80, 443, 3306, 8080, 8443, 2082, 2083]
     open_ports = []
@@ -209,24 +225,42 @@ def az_comprehensive_recon(target_url):
             s.close()
         except:
             pass
-    report += f"  -> Açık Tespit Edilen Portlar: {open_ports if open_ports else 'Standart dışı açık port yok.'}\n" + "—" * 40 + "\n"
+    report += f"  -> Açık Portlar: {open_ports if open_ports else 'Standart dışı açık port yok.'}\n" + "—" * 40 + "\n"
 
-    # 4. Alt Alan Adı (Subdomain) Taraması
-    report += "🌍 4. ALT ALAN ADI (SUBDOMAIN) TARAMASI:\n"
+    # 4. Subdomain Taraması + Durum ve Başlık Kontrolü
+    report += "🌍 4. SUBDOMAIN DURUM VE BAŞLIK ANALİZİ:\n"
     subs = ["www", "api", "admin", "test", "dev", "panel", "login", "mail", "shop", "portal", "vpn", "cpanel"]
     found_subs = 0
     for sub in subs:
         sub_dom = f"{sub}.{domain}"
+        sub_url = f"https://{sub_dom}"
         try:
+            # IP çözme
             ip_sub = socket.gethostbyname(sub_dom)
-            report += f"  ✅ Bulundu: {sub_dom} ({ip_sub})\n"
+            # Canlı HTTP kontrolü ve Title çekme
+            status_code = "Bilinmiyor"
+            title = "Başlık Yok"
+            try:
+                res_sub = requests.get(sub_url, timeout=2, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+                status_code = res_sub.status_code
+                soup_sub = BeautifulSoup(res_sub.text, 'html.parser')
+                if soup_sub.title and soup_sub.title.string:
+                    title = soup_sub.title.string.strip()[:30]
+            except:
+                try:
+                    res_sub = requests.get(f"http://{sub_dom}", timeout=2, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+                    status_code = res_sub.status_code
+                except:
+                    pass
+
+            report += f"  ✅ {sub_dom} (IP: {ip_sub}) | Durum: {status_code} | Başlık: {title}\n"
             found_subs += 1
         except:
             pass
-    if found_subs == 0: report += "  - Aktif yaygın subdomain eşleşmedi.\n"
+    if found_subs == 0: report += "  - Aktif subdomain eşleşmedi.\n"
     report += "—" * 40 + "\n"
 
-    # 5. SSL Sertifika Detayları
+    # 5. SSL Analizi
     report += "🔒 5. SSL / TLS SERTİFİKA ANALİZİ:\n"
     try:
         context = ssl.create_default_context()
@@ -234,25 +268,38 @@ def az_comprehensive_recon(target_url):
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
                 issuer = dict(x[0] for x in cert.get('issuer', []))
-                report += f"  [+] Sertifika Sağlayıcı: {issuer.get('organizationName', 'Bilinmiyor')}\n"
-                report += f"  [+] Sürüm / Versiyon: {cert.get('version')}\n"
+                report += f"  [+] Sağlayıcı: {issuer.get('organizationName', 'Bilinmiyor')}\n"
     except Exception as e:
-        report += f"  [!] SSL bağlantı hatası: {str(e)}\n"
+        report += f"  [!] SSL hatası: {str(e)}\n"
     report += "—" * 40 + "\n"
 
-    # 6. HTTP Başlıkları ve Teknoloji Tespiti
-    report += "🛡️ 6. HTTP BAŞLIKLARI & WEB TEKNOLOJİSİ:\n"
+    # 6. HTTP Başlıkları & Teknoloji
+    report += "🛡️ 6. HTTP BAŞLIKLARI & TEKNOLOJİ:\n"
     try:
         r = requests.get(target_url, timeout=5, verify=False, headers={"User-Agent": "Mozilla/5.0"})
         report += f"  [+] Durum Kodu: {r.status_code}\n"
         report += f"  [+] Sunucu Yazılımı: {r.headers.get('Server', 'Gizlenmiş')}\n"
-        report += f"  [+] Güç Kaynağı / Teknoloji: {r.headers.get('X-Powered-By', 'Bilinmiyor')}\n"
     except:
-        report += "  [!] Ana dizine HTTP isteği atılamadı.\n"
+        report += "  [!] Ana dizine istek atılamadı.\n"
     report += "—" * 40 + "\n"
 
-    # 7. A'dan Z'ye Genişletilmiş Hassas Dosya / Dizin Fuzzing
-    report += "📂 7. A-Z HASSAS DOSYA VE DİZİN TARAMASI:\n"
+    # 7. Robots.txt Analizi
+    report += "🤖 7. ROBOTS.TXT ANALİZİ:\n"
+    try:
+        robots_res = requests.get(f"{target_url.rstrip('/')}/robots.txt", timeout=3, verify=False)
+        if robots_res.status_code == 200:
+            report += "  [+] robots.txt Erişilebilir! Gizli Yollar (Disallow):\n"
+            for line in robots_res.text.splitlines():
+                if "Disallow" in line:
+                    report += f"    -> {line}\n"
+        else:
+            report += "  - robots.txt bulunamadı veya engellenmiş.\n"
+    except:
+        report += "  - robots.txt okunamadı.\n"
+    report += "—" * 40 + "\n"
+
+    # 8. Hassas Dosya ve Açık Dizin (Directory Listing) Taraması
+    report += "📂 8. HASSAS DOSYA & AÇIK DİZİN (DIRECTORY LISTING) TARAMASI:\n"
     az_paths = [
         "/robots.txt", "/sitemap.xml", "/.env", "/config.json", "/config.php",
         "/database.sql", "/backup.sql", "/db.bak", "/dump.sql", "/admin/",
@@ -267,19 +314,26 @@ def az_comprehensive_recon(target_url):
         try:
             res = requests.get(test_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
             if res.status_code == 200:
-                report += f"  🚨 [200 OK - ERİŞİLEBİLİR] {test_url}\n"
+                report += f"  🚨 [200 OK] {test_url}\n"
                 found_paths += 1
+                # Eğer açık dizin ise içindeki dosyaları parse et
+                if path in ["/db/", "/backup/", "/uploads/", "/assets/"]:
+                    files = parse_directory_listing(test_url)
+                    if files:
+                        report += f"     └─ 📁 Dizin İçeriği ({len(files)} dosya bulundu):\n"
+                        for f in files[:10]: # ilk 10 dosyayı listele
+                            report += f"        • {f}\n"
             elif res.status_code == 403:
                 report += f"  🔒 [403 YASAKLI] {path}\n"
         except:
             pass
             
     if found_paths == 0:
-        report += "  - Doğrudan açıkta kritik dosya tespit edilemedi (WAF / Koruma aktif).\n"
+        report += "  - Doğrudan açıkta kritik dosya tespit edilemedi.\n"
     else:
-        report += f"\n  -> Toplam {found_paths} adet erişilebilir dosya yakalandı!\n"
+        report += f"\n  -> Toplam {found_paths} erişilebilir nokta yakalandı!\n"
 
-    report += "\n" + "—" * 60 + "\n🏁 A-Z KEŞİF VE TARAMA TAMAMLANDI."
+    report += "\n" + "—" * 60 + "\n🏁 A-Z KEŞİF TAMAMLANDI."
     return report
 
 # --- TELEGRAM BOT DÖNGÜSÜ ---
@@ -300,14 +354,14 @@ def run_telegram_bot():
                     text = message["text"].strip()
                     
                     if text.startswith("/start"):
-                        send_telegram_message(chat_id, "🛡️ **A-Z Linux Recon Bot Aktif!**\n\nKullanım:\n`/scan siteadi.com`")
+                        send_telegram_message(chat_id, "🛡️ **Gelişmiş A-Z Recon Bot Aktif!**\n\nKullanım:\n`/scan siteadi.com`")
                     elif text.startswith("/scan"):
                         parts = text.split(maxsplit=1)
                         if len(parts) < 2:
                             send_telegram_message(chat_id, "⚠️ Lütfen hedef gir! Örnek: `/scan example.com`")
                             continue
                         target = parts[1].strip()
-                        send_telegram_message(chat_id, f"⏳ `{target}` için A-Z Linux altyapılı tarama başlatıldı...")
+                        send_telegram_message(chat_id, f"⏳ `{target}` için gelişmiş modüller çalıştırılıyor...")
                         res = az_comprehensive_recon(target)
                         if len(res) > 4000: res = res[:4000] + "\n...(Kısaltıldı)"
                         send_telegram_message(chat_id, f"```\n{res}\n```")
