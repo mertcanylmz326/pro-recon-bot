@@ -113,7 +113,7 @@ HTML_TEMPLATE = """
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; }
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 13px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -195,7 +195,7 @@ HTML_TEMPLATE = """
             <div class="ar-container">
                 <div class="ar-hud">
                     <span id="arHudText">Durum: Bekleniyor...</span>
-                    <span id="arTelemetry" style="color: #38bdf8;">GPS: OK | HUD: ACTIVE</span>
+                    <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | YÖN: Kuzey</span>
                 </div>
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
@@ -340,15 +340,15 @@ HTML_TEMPLATE = """
             if(tabId !== 'arNavTab') stopARCamera();
         }
 
-        // --- GELİŞMİŞ CYBERPUNK 3D PERSPEKTİF AR NAVİGASYON MOTORU ---
+        // --- GELİŞMİŞ CYBERPUNK 3D PERSPEKTİF & HUD AR NAVİGASYON MOTORU ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
+            let telemetry = document.getElementById('arTelemetry');
             let canvas = document.getElementById('arCanvas');
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
 
             try {
-                // Arka kamerayı zorunlu kıl
                 arStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: { exact: "environment" } }, 
                     audio: false 
@@ -383,7 +383,16 @@ HTML_TEMPLATE = """
                 ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
                 ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
 
-                // 2. 3D Perspektifli Neon Rota Şeridi
+                // 2. Lazer Tarama Çizgisi (Yukarıdan Aşağıya Hareket Eden Sci-Fi Efekt)
+                let scanLineY = (step * 8) % h;
+                ctx.strokeStyle = 'rgba(0, 255, 102, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, scanLineY);
+                ctx.lineTo(w, scanLineY);
+                ctx.stroke();
+
+                // 3. 3D Perspektifli Neon Rota Şeridi
                 ctx.beginPath();
                 ctx.lineWidth = 6;
                 ctx.strokeStyle = 'rgba(0, 255, 102, 0.85)';
@@ -403,7 +412,7 @@ HTML_TEMPLATE = """
                 ctx.fill();
                 ctx.stroke();
 
-                // 3. Yol Üzerinde İlerleyen Navigasyon Okları
+                // 4. Yol Üzerinde İlerleyen Navigasyon Okları
                 let arrowY = bottomY - ((step * 6) % (bottomY - horizonY));
                 if (arrowY > horizonY) {
                     ctx.fillStyle = '#38bdf8';
@@ -415,7 +424,7 @@ HTML_TEMPLATE = """
                     ctx.fill();
                 }
 
-                // 4. Çukur / Bozuk Zemin Tespit Simülasyonu
+                // 5. Çukur / Bozuk Zemin Tespit Simülasyonu
                 if (step % 55 === 0) {
                     let hazardX = w * 0.15 + Math.random() * (w * 0.5);
                     let hazardY = h * 0.55 + Math.random() * (h * 0.25);
@@ -433,7 +442,8 @@ HTML_TEMPLATE = """
                     hud.innerText = "⚠️ DİKKAT: Zemin Bozuk, Kaçış Manevrası Yapın!";
                     speakVoice("Dikkat, önünüzde çukur var, sağdan devam edin.");
                 } else if (step % 55 === 25) {
-                    hud.innerText = "🧭 Rota Güvenli | Mesafe: 95m | Hız: 28 km/s";
+                    hud.innerText = "🧭 Rota Güvenli | Mesafe: 95m";
+                    telemetry.innerText = "HIZ: 32 km/s | YÖN: Kuzey-Batı";
                 }
 
                 step++;
@@ -452,6 +462,7 @@ HTML_TEMPLATE = """
             let video = document.getElementById('arVideo');
             video.srcObject = null;
             document.getElementById('arHudText').innerText = "Durum: Sistem Kapalı";
+            document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | YÖN: -";
         }
 
         function speakVoice(text) {
