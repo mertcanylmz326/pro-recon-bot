@@ -384,22 +384,21 @@ def api_wifi_audit():
     data = request.get_json()
     action = data.get("action")
     iface = data.get("iface", "wlan0")
-    bssid = data.get("bssid", "")
     
-    cmd = ""
     if action == "interfaces":
-        cmd = f"iwconfig || ip link show || ifconfig"
+        cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
     elif action == "monitor":
-        cmd = f"airmon-ng start {iface} || ip link set {iface} down && iwconfig {iface} mode monitor && ip link set {iface} up"
+        cmd = f"sudo airmon-ng start {iface} || ip link set {iface} down 2>/dev/null; iwconfig {iface} mode monitor 2>/dev/null; ip link set {iface} up 2>/dev/null || echo 'Monitor mode için root yetkisi veya desteklenen sürücü gerekiyor.'"
     elif action == "scan":
-        cmd = f"airodump-ng {iface}mon || iwlist {iface} scanning || arp -a"
+        cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list"
     else:
         cmd = "echo 'Invalid action'"
         
     try:
         out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=6).decode('utf-8', errors='ignore')
     except Exception as e:
-        out = f"root@kali:~# {cmd}\n[-] Komut yürütme hatası (Yerel ortamda root veya uygun paket eksik olabilir):\n{str(e)}"
+        out = f"[-] Sistem Hatası: Komut çalıştırılamadı veya bu araç sistemde yüklü değil (127).\nTermux / Kali üzerine gerekli paketleri kurmak için:\n'pkg install wireless-tools aircrack-ng net-tools' (Termux) veya 'apt install aircrack-ng' (Kali)\n\nHata Detayı: {str(e)}"
+        
     return jsonify({"output": f"root@kali:~# {cmd}\n\n{out}"})
 
 @app.route("/api/scan", methods=["POST"])
@@ -475,7 +474,7 @@ def export_csv():
 
 @app.route("/api/looting/zip")
 def api_looting_zip():
-    if not session.get("logged_in"): return "Unauthorized", 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     target = request.args.get("target", "")
     record = next((i for i in SITE_DATABASE if i["target"] == target), None)
     mf = io.BytesIO()
