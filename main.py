@@ -5,119 +5,183 @@ import ssl
 import urllib.parse
 import requests
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from flask import Flask, render_template_string, request, jsonify
 
-# --- BOT TOKEN ---
+# --- ÇEVRE DEĞİŞKENLERİ ---
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9082287913:AAEw9lMwKXfRTGf4LzQiF1UEgLZDHzNuc8o")
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
-# --- RENDER İÇİN HAFİF WEB SUNUCUSU (Port Açık Tutma) ---
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Recon Bot is active and running 24/7!")
+# --- FLASK WEB PANELİ ---
+app = Flask(__name__)
 
-def run_web_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-    print(f"Web sunucu {port} portunda başlatıldı.")
-    server.serve_forever()
+# Web Paneli Arayüzü (HTML + CSS)
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Pro Recon & Vulnerability Panel</title>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h1 { color: #38bdf8; text-align: center; margin-bottom: 25px; }
+        .form-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 16px; }
+        button { padding: 12px 24px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #0369a1; }
+        .results { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; white-space: pre-wrap; font-family: monospace; margin-top: 20px; max-height: 500px; overflow-y: auto; }
+        .loading { color: #facc15; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Pro Recon & Security Panel</h1>
+        <div class="form-group">
+            <input type="text" id="targetUrl" placeholder="Hedef siteyi gir (örn: example.com)">
+            <button onclick="startScan()">Taramayı Başlat</button>
+        </div>
+        <div id="status" class="loading"></div>
+        <div id="results" class="results" style="display:none;"></div>
+    </div>
 
-# --- KAPSAMLI TARAMA MOTORU ---
+    <script>
+        async function startScan() {
+            const url = document.getElementById('targetUrl').value.trim();
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            if(!url) {
+                alert('Lütfen geçerli bir hedef gir!');
+                return;
+            }
+            
+            statusDiv.innerHTML = "⏳ Hedef taranıyor, hassas dosyalar ve açıklar listeleniyor...";
+            resultsDiv.style.display = "none";
+            resultsDiv.innerHTML = "";
+            
+            try {
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: url })
+                });
+                const data = await response.json();
+                statusDiv.innerHTML = "";
+                resultsDiv.style.display = "block";
+                resultsDiv.innerHTML = data.report;
+            } catch (err) {
+                statusDiv.innerHTML = "❌ Tarama sırasında bir hata oluştu!";
+            }
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.route("/")
+def index():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route("/api/scan", methods=["POST"])
+def api_scan():
+    data = request.get_json()
+    target = data.get("target", "")
+    report = deep_security_scan(target)
+    return jsonify({"report": report})
+
+# --- KAPSAMLI TARAMA VE LİSTELEME MOTORU ---
 def deep_security_scan(target_url):
     if not target_url.startswith("http"):
         target_url = f"https://{target_url}"
         
     parsed = urllib.parse.urlparse(target_url)
     domain = parsed.netloc
-    report = f"🎯 **KAPSAMLI HEDEF ANALİZ RAPORU**\n`{target_url}`\n" + "—" * 30 + "\n\n"
+    report = f"🎯 HEDEF ANALİZ RAPORU: {target_url}\n" + "—" * 40 + "\n\n"
     
     # 1. IP ve Ağ Bilgisi
     try:
         ip = socket.gethostbyname(domain)
-        report += f"🌐 **Sunucu IP:** `{ip}`\n"
+        report += f"[i] Sunucu IP Adresi: {ip}\n"
     except Exception:
-        report += "🌐 **Sunucu IP:** Çözümlenemedi!\n"
+        report += "[!] Sunucu IP adresi çözümlenemedi.\n"
 
-    # 2. SSL / TLS Güvenlik Analizi
+    # 2. SSL Durumu
     try:
         context = ssl.create_default_context()
         with socket.create_connection((domain, 443), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
                 issuer = dict(x[0] for x in cert.get('issuer', []))
-                report += f"🔒 **SSL Sertifikası:** Aktif ({issuer.get('organizationName', 'Bilinmiyor')})\n"
+                report += f"[+] SSL Sertifikası: Aktif ({issuer.get('organizationName', 'Bilinmiyor')})\n"
     except Exception:
-        report += "⚠️ **SSL Uyarısı:** Güvenli bağlantı kurulamadı veya sertifika zayıf.\n"
+        report += "[!] SSL bağlantı uyarısı veya zayıf sertifika.\n"
 
-    # 3. HTTP Güvenlik Başlıkları Kontrolü
+    # 3. HTTP Güvenlik Başlıkları
     try:
         response = requests.get(target_url, timeout=6, verify=False, headers={"User-Agent": "Mozilla/5.0"})
         headers = response.headers
-        report += f"📊 **HTTP Status Code:** `{response.status_code}`\n"
-        report += f"🛡️ **Web Server / Teknoloji:** `{headers.get('Server', 'Gizlenmiş')}`\n"
+        report += f"[+] HTTP Durum Kodu: {response.status_code}\n"
+        report += f"[+] Sunucu Yazılımı: {headers.get('Server', 'Gizlenmiş')}\n"
         
-        missing_sec = [h for h in ["X-Frame-Options", "X-Content-Type-Options", "Strict-Transport-Security", "Content-Security-Policy"] if h not in headers]
-        if missing_sec:
-            report += f"⚠️ **Eksik Güvenlik Başlıkları:** {', '.join(missing_sec)}\n"
+        missing = [h for h in ["X-Frame-Options", "X-Content-Type-Options", "Strict-Transport-Security", "Content-Security-Policy"] if h not in headers]
+        if missing:
+            report += f"[!] Eksik Güvenlik Başlıkları: {', '.join(missing)}\n"
     except Exception:
-        report += "❌ **Bağlantı Hatası:** Ana dizine erişilemedi.\n"
+        report += "[!] Ana dizine HTTP isteği atılamadı.\n"
 
-    # 4. Hassas Dosya ve Veritabanı Yedek Taraması
-    report += "\n📂 **Hassas Dosya & Veritabanı Taraması:**\n"
+    # 4. ERİŞİLEBİLİR DOSYALARI VE LİNKLERİ LİSTELEME (Fuzzing)
+    report += "\n📂 ERİŞİLEBİLİRLİK VE DOSYA TARAMA SONUÇLARI:\n"
     sensitive_paths = [
         "/robots.txt", "/sitemap.xml", "/.env", "/config.json", "/config.php",
         "/database.sql", "/backup.sql", "/db.bak", "/dump.sql", "/admin/",
-        "/phpmyadmin/", "/wp-login.php", "/api/v1/users", "/server-status"
+        "/phpmyadmin/", "/wp-login.php", "/api/v1/users", "/server-status",
+        "/uploads/", "/assets/", "/backup/", "/db/", "/old/", "/test.txt"
     ]
     
-    found_paths = 0
+    found_count = 0
     for path in sensitive_paths:
         test_url = f"{target_url.rstrip('/')}{path}"
         try:
             r = requests.get(test_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
             if r.status_code == 200:
-                report += f"  🚨 **[BULUNDU - 200]** `{path}` (Erişilebilir!)\n"
-                found_paths += 1
+                report += f"  🚨 [ERİŞİLEBİLİR - 200 OK] {test_url}\n"
+                found_count += 1
             elif r.status_code == 403:
-                report += f"  🔒 **[403 Yasaklı]** `{path}` (Korunuyor ama var)\n"
+                report += f"  🔒 [YASAKLI - 403] {path} (Mevcut ama kilitli)\n"
         except:
             pass
             
-    if found_paths == 0:
-        report += "  ✅ Kritik hassas dosya eşleşmesi bulunamadı.\n"
+    if found_count == 0:
+        report += "  - Doğrudan açıkta bulunan kritik dosya eşleşmesi saptanamadı.\n"
+    else:
+        report += f"\n  -> Toplam {found_count} adet erişilebilir hassas yol/dosya tespit edildi!\n"
 
-    # 5. Zafiyet / SQL Enjeksiyon Vektör Testi
-    report += "\n🔍 **Zafiyet Vektör Analizi (Parametre / Giriş):**\n"
+    # 5. SQL Enjeksiyon / Zafiyet Testi
+    report += "\n🔍 ZAFİYET VE PARAMETRE ANALİZİ:\n"
     try:
         test_param_url = f"{target_url}/?id=1"
         r_test = requests.get(test_param_url, timeout=4, verify=False)
         if any(err in r_test.text.lower() for err in ["sql syntax", "mysql", "syntax error", "ora-", "postgresql"]):
-            report += "  🚨 **KRİTİK UYARI:** Veritabanı hata mesajı yakalandı! Potansiyel SQL Injection açığı olabilir.\n"
+            report += "  🚨 KRİTİK: Veritabanı hata mesajı yakalandı! Potansiyel SQL Injection açığı bulunuyor.\n"
         else:
-            report += "  ✅ Standart parametrelerde açık SQL hatası dönmedi.\n"
+            report += "  - Standart parametre testlerinde açık hata dönmedi.\n"
     except:
-        report += "  ℹ️ Parametre testleri atlandı.\n"
+        report += "  - Parametre analizi atlandı.\n"
 
-    report += "\n" + "—" * 30 + "\n🏁 **Tarama Tamamlandı.**"
+    report += "\n" + "—" * 40 + "\n🏁 TARAMA TAMAMLANDI."
     return report
 
 def send_telegram_message(chat_id, text):
     url = f"{BASE_URL}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown"
-    }
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"Mesaj gönderme hatası: {e}")
+        print(f"Telegram mesaj hatası: {e}")
 
-# --- TELEGRAM LONG-POLLING DÖNGÜSÜ ---
+# --- TELEGRAM BOT DÖNGÜSÜ ---
 def run_telegram_bot():
-    print("Telegram bot polling başlatıldı (Saf Python)...")
+    print("Telegram bot polling başlatıldı...")
     offset = 0
     while True:
         try:
@@ -136,32 +200,31 @@ def run_telegram_bot():
                     if text.startswith("/start"):
                         send_telegram_message(
                             chat_id, 
-                            "🚀 **Profesyonel Recon & Zafiyet Tarayıcı Aktif!**\n\n"
-                            "Hedef sistem üzerinde analiz başlatmak için komutu şu şekilde kullan:\n"
-                            "`/scan siteadi.com`"
+                            "🚀 **Pro Recon Bot & Panel Aktif!**\n\n"
+                            "İster Telegram'dan `/scan siteadi.com` yaz, ister kurduğumuz Web Paneline girerek siteleri tarayıp erişilebilir dosyaları anında ekranda listelet kanka!"
                         )
                     elif text.startswith("/scan"):
                         parts = text.split(maxsplit=1)
                         if len(parts) < 2:
-                            send_telegram_message(chat_id, "⚠️ Lütfen taranacak bir hedef site gir!\nÖrnek: `/scan example.com`")
+                            send_telegram_message(chat_id, "⚠️ Lütfen hedef site gir!\nÖrnek: `/scan example.com`")
                             continue
                             
                         target = parts[1].strip()
-                        send_telegram_message(chat_id, f"⏳ `{target}` için kapsamlı zafiyet ve veri tabanı yolu taraması başlatıldı...")
+                        send_telegram_message(chat_id, f"⏳ `{target}` taranıyor, erişilebilir dosyalar listeleniyor...")
                         
-                        # Taramayı çalıştır ve sonucu gönder
                         scan_result = deep_security_scan(target)
                         if len(scan_result) > 4000:
-                            scan_result = scan_result[:4000] + "\n\n... (Rapor uzunluğu nedeniyle kesildi)"
-                        send_telegram_message(chat_id, scan_result)
+                            scan_result = scan_result[:4000] + "\n\n... (Rapor çok uzun olduğu için kesildi)"
+                        send_telegram_message(chat_id, f"```\n{scan_result}\n```")
         except Exception as e:
-            print(f"Polling döngüsü hatası: {e}")
+            print(f"Telegram polling hatası: {e}")
             time.sleep(5)
 
 if __name__ == "__main__":
-    # Web sunucusunu arka planda (thread) başlatıyoruz ki Render port kontrolünden geçsin
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
+    # Telegram botunu arka planda thread olarak çalıştırıyoruz
+    bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
+    bot_thread.start()
     
-    # Telegram bot döngüsünü ana akışta çalıştırıyoruz
-    run_telegram_bot()
+    # Flask Web Sunucusunu ana akışta başlatıyoruz (Render bu portu dinler)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
