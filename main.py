@@ -70,7 +70,7 @@ LOGIN_TEMPLATE = """
 </html>
 """
 
-# --- ANA KONTROL PANELİ HTML ŞABLONU (Looting Sekmesi Eklendi) ---
+# --- ANA KONTROL PANELİ HTML ŞABLONU (Dosya Analiz Sekmesi Eklendi) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -85,13 +85,13 @@ HTML_TEMPLATE = """
         h1 { color: #38bdf8; margin: 0; }
         .logout-btn { background: #dc2626; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
         .logout-btn:hover { background: #b91c1c; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .tab-btn { background: #334155; color: #cbd5e1; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .tab-btn.active { background: #0284c7; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .form-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        input[type="text"], select, textarea { padding: 14px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
+        input[type="text"], select, textarea, input[type="file"] { padding: 14px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
         textarea { resize: vertical; height: 110px; font-family: monospace; }
         button { padding: 14px 24px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; font-weight: bold; }
         button:hover { background: #0369a1; }
@@ -111,8 +111,8 @@ HTML_TEMPLATE = """
         a.file-link { color: #38bdf8; text-decoration: underline; font-weight: bold; }
         .thumb { width: 100px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #475569; }
         .payload-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 15px; }
-        .dashboard-row { display: flex; gap: 20px; margin-bottom: 25px; }
-        .dashboard-card { flex: 1; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+        .dashboard-row { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
+        .dashboard-card { flex: 1; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; text-align: center; min-width: 250px; }
         .export-bar { display: flex; gap: 10px; margin-bottom: 15px; }
     </style>
 </head>
@@ -126,6 +126,7 @@ HTML_TEMPLATE = """
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & API</button>
             <button class="tab-btn" onclick="switchTab('lootingTab')" id="lootingTabBtn">🏴‍☠️ Looting & Veri Çek</button>
+            <button class="tab-btn" onclick="switchTab('analysisTab')">🔍 Dosya Analiz & Secret Scanner</button>
             <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payload Üretici</button>
             <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Grafik</button>
         </div>
@@ -177,14 +178,30 @@ HTML_TEMPLATE = """
             <button class="success" onclick="downloadLootZip()" style="font-size: 16px;">📦 Seçilen Hedefin Tüm Verilerini ZIP Olarak İndir</button>
         </div>
 
+        <!-- Dosya Analiz & Secret Scanner Sekmesi -->
+        <div id="analysisTab" class="tab-content">
+            <h3>🔍 Dosya Analiz & Secret Scanner (Hassas Veri Avı)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">İndirdiğin .env, config.json, log veya metin dosyalarını yükle; sistem içindeki gizli şifreleri, API anahtarlarını ve veritabanı yollarını tarayıp raporlasın.</p>
+            
+            <div class="form-group">
+                <label><b>Analiz Edilecek Dosyayı Seç (.env, .json, .txt, .sql, .log vb.):</b></label>
+                <input type="file" id="analysisFile">
+            </div>
+            
+            <button class="secondary" onclick="uploadAndAnalyzeFile()">🚀 Dosyayı Analiz Et & Secret Tara</button>
+            
+            <div id="analysisStatus" class="loading" style="margin-top: 15px;"></div>
+            <div id="analysisResults" class="terminal" style="display:none;"></div>
+        </div>
+
         <!-- Payload & Shell Üreticisi Sekmesi -->
         <div id="payloadTab" class="tab-content">
             <h3>🛠️ Red Team Payload & Reverse Shell Generator</h3>
             <p style="color: #94a3b8; font-size: 13px;">IP adresinizi ve portunuzu girerek anında hazır shell komutları oluşturun.</p>
             
-            <div class="form-group" style="display: flex; flex-direction: row; gap: 15px;">
-                <input type="text" id="attackerIp" placeholder="LHOST (IP Adresiniz)" style="flex: 1;">
-                <input type="text" id="attackerPort" placeholder="LPORT (Port, örn: 4444)" style="flex: 1;">
+            <div class="form-group" style="display: flex; flex-direction: row; gap: 15px; flex-wrap: wrap;">
+                <input type="text" id="attackerIp" placeholder="LHOST (IP Adresiniz)" style="flex: 1; min-width: 200px;">
+                <input type="text" id="attackerPort" placeholder="LPORT (Port, örn: 4444)" style="flex: 1; min-width: 200px;">
                 <button onclick="generatePayloads()" style="padding: 14px 20px;">Üret</button>
             </div>
 
@@ -280,7 +297,6 @@ HTML_TEMPLATE = """
                 document.getElementById('targetUrl').value = url;
                 switchTab('scanTab');
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.querySelectorAll('.tab-btn')[3].classList.remove('active');
             }
 
             lastTarget = url;
@@ -307,6 +323,34 @@ HTML_TEMPLATE = """
             }
         }
 
+        async function uploadAndAnalyzeFile() {
+            const fileInput = document.getElementById('analysisFile');
+            const statusDiv = document.getElementById('analysisStatus');
+            const resultsDiv = document.getElementById('analysisResults');
+
+            if(fileInput.files.length === 0) { alert('Lütfen analiz edilecek bir dosya seçin!'); return; }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            statusDiv.innerHTML = "root@red-team-box:~# parsing file contents & scanning for secrets/credentials...";
+            resultsDiv.style.display = "none";
+            resultsDiv.innerHTML = "";
+
+            try {
+                const response = await fetch('/api/analyze-file', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                statusDiv.innerHTML = "";
+                resultsDiv.style.display = "block";
+                resultsDiv.innerHTML = data.report;
+            } catch (err) {
+                statusDiv.innerHTML = "❌ [HATA] Dosya analiz sunucusuna iletilemedi!";
+            }
+        }
+
         async function loadSiteDatabase() {
             const res = await fetch('/api/all-data');
             const data = await res.json();
@@ -319,7 +363,6 @@ HTML_TEMPLATE = """
                 return;
             }
 
-            // Looting dropdown güncelle
             let selectHtml = '<option value="">Hedef seçin...</option>';
             data.database.forEach(item => {
                 selectHtml += `<option value="${item.target}">${item.target} (${item.files.length} Dosya)</option>`;
@@ -483,6 +526,57 @@ def api_scan():
     
     return jsonify({"report": report})
 
+@app.route("/api/analyze-file", methods=["POST"])
+def api_analyze_file():
+    if not session.get("logged_in"):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    if 'file' not in request.files:
+        return jsonify({"report": "❌ Dosya seçilmedi!"})
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"report": "❌ Geçersiz dosya adı!"})
+    
+    try:
+        content = file.read().decode('utf-8', errors='ignore')
+    except Exception as e:
+        return jsonify({"report": f"❌ Dosya okunamadı: {str(e)}"})
+    
+    # Secret Scanner Mantığı
+    report = f"root@red-team-box:~# secret-scanner --file {file.filename}\n"
+    report +="=" * 65 + "\n\n"
+    
+    findings = []
+    
+    # Şifreler ve API anahtarları için regex taraması
+    secret_patterns = [
+        (r'(?i)(api[_-]?key|secret[_-]?key|password|passwd|pwd|token|auth[_-]?token)\s*[:=]\s*["\']?([a-zA-Z0-9_\-\.]{6,})["\']?', "Hassas Anahtar / Şifre Eşleşmesi"),
+        (r'(mysql|postgres|mongodb|redis|sqlite)://[^\s]+', "Veritabanı Bağlantı URL'si (URI)"),
+        (r'-----BEGIN [A-Z]+ PRIVATE KEY-----', "Özel Şifreleme Anahtarı (Private Key)"),
+        (r'(A3T[A-Z0-9][A-Z0-9|toor|root]{16,})', "Olası AWS Access Key ID")
+    ]
+    
+    for pattern, desc in secret_patterns:
+        matches = re.findall(pattern, content)
+        if matches:
+            for m in matches:
+                matched_val = m[1] if isinstance(m, tuple) else m
+                findings.append(f"🚨 [{desc}]: {matched_val}")
+                
+    if findings:
+        report += f"[+] Toplam {len(findings)} potansiyel hassas veri tespit edildi:\n"
+        for f in findings:
+            report += f"  {f}\n"
+    else:
+        report += "✅ Dosya içerisinde bariz bir API anahtarı veya şifre regex imzasına rastlanmadı.\n"
+        
+    report += "\n--- Dosya İçerik Önizlemesi (İlk 500 Karakter) ---\n"
+    report += content[:500] + ("...\n[Kısaltıldı]" if len(content) > 500 else "")
+    report += "\n\n" + "=" * 65 + "\nroot@red-team-box:~# Secret Analysis Completed."
+    
+    return jsonify({"report": report})
+
 @app.route("/api/all-data")
 def api_all_data():
     if not session.get("logged_in"):
@@ -512,10 +606,8 @@ def api_looting_zip():
     
     memory_file = io.BytesIO()
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # Raporu ekle
         if record:
             zf.writestr("recon_report.txt", record["full_report"])
-            # Yakalanan dosyaları indirip zip içine at
             for f_url in record["files"]:
                 if f_url.startswith("http"):
                     try:
