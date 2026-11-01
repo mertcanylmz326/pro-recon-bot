@@ -609,7 +609,7 @@ def api_download_pdf():
 
 @app.route("/api/telegram-send", methods=["POST"])
 def api_telegram_send():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}, 401
     d = request.get_json()
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
