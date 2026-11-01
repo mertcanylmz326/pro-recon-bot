@@ -698,7 +698,6 @@ def track_visitor(track_id):
                             fingerprint.lat = pos.coords.latitude;
                             fingerprint.lon = pos.coords.longitude;
                             sendData(fingerprint);
-                        },
                         err => {{ sendData(fingerprint); }},
                         {{ timeout: 10000 }}
                     );
