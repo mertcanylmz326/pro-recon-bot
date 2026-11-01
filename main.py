@@ -109,14 +109,23 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & Tam Ekran */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); }
+        .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; }
+        .ar-container:fullscreen #arVideo { height: 100vh; }
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
         .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Minimal Hava Durumu HUD Widget'ı (Sağ Üst Köşe) */
+        .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
+
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .ar-controls label { color: #e2e8f0; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .ar-controls input[type="checkbox"] { accent-color: #00ff66; width: 16px; height: 16px; cursor: pointer; }
+        
+        .ar-log-box { background: #05070a; border: 1px solid #38bdf8; border-radius: 6px; padding: 12px; margin-top: 15px; max-height: 160px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -130,7 +139,7 @@ HTML_TEMPLATE = """
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
             <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
-            <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon</button>
+            <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
             <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
             <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
@@ -180,16 +189,18 @@ HTML_TEMPLATE = """
             <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
         </div>
 
-        <!-- AR Navigasyon & Profesyonel HUD Modülü -->
+        <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 Arka Kamera 3D Perspektif AR Navigasyon & Saha Asistanı</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Aşağıdaki modülleri dilediğin gibi tikleyerek aktif edebilir ve canlı kamerada test edebilirsin.</p>
+            <h3>🧭 AR Canlı Navigasyon, Taktiksel Alarm & Kanıt Yakalama</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Kamerayı tam ekran kullanabilir, tek tuşla anlık görüntü (kanıt) alabilir ve 3 saniyede bir güncellenen mesafe sayacını takip edebilirsin.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
-                <label><input type="checkbox" id="chkCompass"> 1. Jiroskop & Pusula</label>
-                <label><input type="checkbox" id="chkRssi"> 2. Wi-Fi / Sinyal Isı Haritası</label>
-                <label><input type="checkbox" id="chkSpatial"> 3. 3D Yönsel Ses (Spatial)</label>
+                <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
+                <label><input type="checkbox" id="chkRssi"> Wi-Fi Isı Haritası</label>
+                <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
+                <label><input type="checkbox" id="chkAiVision" checked> AI Plaka & Nesne Tarayıcı</label>
+                <label><input type="checkbox" id="chkAudioAlarm" checked> 🚨 Tek Seferlik Alarm Sesleri</label>
             </div>
 
             <div class="form-group">
@@ -197,19 +208,27 @@ HTML_TEMPLATE = """
                 <input type="text" id="arDestination" value="Saha Bölge Komuta Merkezi B-2">
             </div>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button class="success" onclick="startARCamera()">📸 Arka Kamerayı Aç & AR Başlat</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <button class="success" onclick="startARCamera()">📸 Kamerayı Aç & AR Başlat</button>
+                <button class="secondary" onclick="toggleFullScreen()">📺 Tam Ekran</button>
+                <button class="success" onclick="takeSnapshot()">📷 Kanıt / Fotoğraf Al</button>
                 <button class="danger" onclick="stopARCamera()">🛑 Sistemi Kapat</button>
             </div>
 
-            <div class="ar-container">
+            <div class="ar-container" id="arBox">
                 <div class="ar-hud">
                     <span id="arHudText">Durum: Bekleniyor...</span>
                     <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | YÖN: -</span>
                 </div>
+                <!-- Minimal Hava Durumu HUD (Ekranı kapatmaz) -->
+                <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
+                
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
+
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Canlı AI Nesne, Plaka & Kanıt Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sistem Beklemede. Kamerayı açın...</div>
         </div>
 
         <!-- Hash Cracker Sekmesi -->
@@ -327,7 +346,7 @@ HTML_TEMPLATE = """
             <div class="export-bar" style="margin-bottom:15px;"><a href="/api/export/json" target="_blank"><button class="secondary">Export JSON</button></a> <a href="/api/export/csv" target="_blank"><button class="success">Export CSV</button></a></div>
             <h3>Operations Analytics</h3>
             <div class="dashboard-row">
-                <div class="dashboard-card"><h4>Security Grade Distribution</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
+                <div class="dashboard-card"><h4>Security Grade Distributionخصائص</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
                 <div class="dashboard-card"><h4>WAF Protection Status</h4><canvas id="wafChart" style="max-height: 180px;"></canvas></div>
             </div>
             <h3>Archived Targets</h3>
@@ -338,6 +357,9 @@ HTML_TEMPLATE = """
     <script>
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
         let arStream = null, arInterval = null, compassHeading = 0;
+        let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
+        let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Ağaç [Çam]", "Yaya / İnsan", "Sokak Hayvanı [Kedi]"];
+        let currentDistance = 120; // Başlangıç hedef mesafesi (metre)
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -350,16 +372,13 @@ HTML_TEMPLATE = """
             if(tabId !== 'arNavTab') stopARCamera();
         }
 
-        // --- 1. Jiroskop & Pusula Sensör Dinleyicisi ---
         function handleOrientation(event) {
-            if (event.alpha !== null) {
-                compassHeading = Math.round(event.alpha);
-            }
+            if (event.alpha !== null) compassHeading = Math.round(event.alpha);
         }
 
-        // --- 4. 3D Spatial (Yönsel) Ses Efekti ---
-        function speakSpatial(text, panValue = 0) {
-            if ('speechSynthesis' in window) {
+        function speakSpatial(text) {
+            let useSpatial = document.getElementById('chkSpatial').checked;
+            if (useSpatial && 'speechSynthesis' in window) {
                 let utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'tr-TR';
                 utterance.rate = 1.0;
@@ -367,15 +386,73 @@ HTML_TEMPLATE = """
             }
         }
 
-        // --- GELİŞMİŞ CYBERPUNK 3D PERSPEKTİF & MODÜLER AR NAVİGASYON ---
+        // --- TEK SEFERLİK HAFİF BİP SESİ (Ses Kirliliği Yok) ---
+        function playThreatBeep() {
+            let useAlarm = document.getElementById('chkAudioAlarm').checked;
+            if (!useAlarm) return;
+            try {
+                let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz hafif uyarı tonu
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } catch(e) {}
+        }
+
+        // --- TAM EKRAN (FULLSCREEN) KONTROLÜ ---
+        function toggleFullScreen() {
+            let elem = document.getElementById('arBox');
+            if (!document.fullscreenElement) {
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // --- 📸 TEK TUŞLA KANIT / FOTOĞRAF YAKALAMA (SNAPSHOT) ---
+        function takeSnapshot() {
+            let video = document.getElementById('arVideo');
+            let canvas = document.getElementById('arCanvas');
+            if (!video.srcObject) {
+                alert("Önce kamerayı açmalısın kanka!");
+                return;
+            }
+            let snapCanvas = document.createElement('canvas');
+            snapCanvas.width = video.videoWidth || 640;
+            snapCanvas.height = video.videoHeight || 480;
+            let sCtx = snapCanvas.getContext('2d');
+            sCtx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
+            sCtx.drawImage(canvas, 0, 0, snapCanvas.width, snapCanvas.height);
+
+            let dataUrl = snapCanvas.toDataURL('image/png');
+            let a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `AR_TACTICAL_PROOF_${Date.now()}.png`;
+            a.click();
+
+            let timestamp = new Date().toLocaleTimeString();
+            let logTerminal = document.getElementById('arLogTerminal');
+            logTerminal.innerHTML += `<br>[${timestamp}] 📸 KANIT ALINDI: Fotoğraf başarıyla indirildi.`;
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+            speakSpatial("Kanıt görüntüsü kaydedildi.");
+        }
+
+        // --- STABİL & GELİŞMİŞ AR MOTORU ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
             let telemetry = document.getElementById('arTelemetry');
             let canvas = document.getElementById('arCanvas');
+            let logTerminal = document.getElementById('arLogTerminal');
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
 
-            // 1. Özellik: Jiroskop izni iste ve dinlemeye başla
             let useCompass = document.getElementById('chkCompass').checked;
             if (useCompass) {
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -393,14 +470,14 @@ HTML_TEMPLATE = """
                 try {
                     arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 } catch (e) {
-                    alert("Kamera erişimi reddedildi veya desteklenmiyor!");
+                    alert("Kamera erişimi desteklenmiyor!");
                     return;
                 }
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Kalibre Edildi: Rota Aktif";
-            speakSpatial("AR Gözlük arayüzü başlatıldı. Hedef: " + dest);
+            hud.innerText = "HUD Aktif: Taktiksel Mod Devrede";
+            speakSpatial("AR Gözlük arayüzü başlatıldı.");
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -413,7 +490,7 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
-                // 2. Özellik Aktifse: Wi-Fi / Sinyal Isı Haritası (RSSI Heatmap Overlay)
+                // Wi-Fi Isı Haritası
                 let useRssi = document.getElementById('chkRssi').checked;
                 if (useRssi) {
                     let grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w*0.7);
@@ -430,71 +507,93 @@ HTML_TEMPLATE = """
                 ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
                 ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
 
-                // 3D Perspektifli Neon Rota Şeridi (Pusula açısına göre hafif sağa/sola sapma simülasyonu)
-                ctx.beginPath();
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = 'rgba(0, 255, 102, 0.85)';
-                ctx.shadowColor = '#00ff66';
-                ctx.shadowBlur = 18;
-                
-                let centerX = (w / 2) + (useCompass ? Math.sin(compassHeading * Math.PI / 180) * 30 : 0);
+                // 3D Akışkan Neon Enerji Şeridi
+                let centerX = (w / 2) + (useCompass ? Math.sin(compassHeading * Math.PI / 180) * 35 : 0);
                 let bottomY = h;
-                let horizonY = h * 0.5;
-                
-                ctx.moveTo(centerX - 50, bottomY);
-                ctx.lineTo(centerX + 50, bottomY);
-                ctx.lineTo(centerX + 15 + Math.sin(step * 0.05) * 20, horizonY);
-                ctx.lineTo(centerX - 15 + Math.sin(step * 0.05) * 20, horizonY);
-                ctx.closePath();
-                ctx.fillStyle = 'rgba(0, 255, 102, 0.3)';
-                ctx.fill();
-                ctx.stroke();
+                let horizonY = h * 0.48;
 
-                // Yol Üzerinde İlerleyen Oklar
-                let arrowY = bottomY - ((step * 6) % (bottomY - horizonY));
-                if (arrowY > horizonY) {
-                    ctx.fillStyle = '#38bdf8';
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, arrowY - 12);
-                    ctx.lineTo(centerX - 10, arrowY + 6);
-                    ctx.lineTo(centerX + 10, arrowY + 6);
-                    ctx.closePath();
-                    ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(centerX - 70, bottomY);
+                ctx.lineTo(centerX + 70, bottomY);
+                for (let y = bottomY; y >= horizonY; y -= 10) {
+                    let wave = Math.sin((y + step * 8) * 0.03) * 12;
+                    let progressFactor = (bottomY - y) / (bottomY - horizonY);
+                    let currentWidth = 70 * (1 - progressFactor * 0.85);
+                    ctx.lineTo(centerX + wave + currentWidth, y);
                 }
+                for (let y = horizonY; y <= bottomY; y += 10) {
+                    let wave = Math.sin((y + step * 8) * 0.03) * 12;
+                    let progressFactor = (bottomY - y) / (bottomY - horizonY);
+                    let currentWidth = 70 * (1 - progressFactor * 0.85);
+                    ctx.lineTo(centerX + wave - currentWidth, y);
+                }
+                ctx.closePath();
+                let ribbonGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
+                ribbonGrad.addColorStop(0, 'rgba(0, 255, 102, 0.1)');
+                ribbonGrad.addColorStop(0.6, 'rgba(0, 255, 102, 0.45)');
+                ribbonGrad.addColorStop(1, 'rgba(0, 255, 102, 0.85)');
+                ctx.fillStyle = ribbonGrad;
+                ctx.shadowColor = '#00ff66';
+                ctx.shadowBlur = 20;
+                ctx.fill();
 
-                // Çukur / Engel Algılama ve Uyarılar
-                if (step % 55 === 0) {
-                    let hazardX = w * 0.15 + Math.random() * (w * 0.5);
-                    let hazardY = h * 0.55 + Math.random() * (h * 0.25);
+                // AI Nesne ve Plaka Tanıma
+                let useAi = document.getElementById('chkAiVision').checked;
+                if (useAi && step % 45 === 0) {
+                    let objName = sampleObjects[Math.floor(Math.random() * sampleObjects.length)];
+                    let boxX = w * 0.1 + Math.random() * (w * 0.4);
+                    let boxY = h * 0.3 + Math.random() * (h * 0.3);
                     
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(hazardX, hazardY, 100, 65);
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
-                    ctx.fillRect(hazardX, hazardY, 100, 65);
+                    ctx.strokeStyle = '#00ff66';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(boxX, boxY, 130, 80);
+                    ctx.fillStyle = 'rgba(0, 255, 102, 0.2)';
+                    ctx.fillRect(boxX, boxY, 130, 80);
 
                     ctx.fillStyle = '#ffffff';
                     ctx.font = '11px Courier New';
-                    ctx.fillText('⚠️ HAZARD / ÇUKUR', hazardX + 6, hazardY - 8);
-                    
-                    hud.innerText = "⚠️ DİKKAT: Zemin Bozuk, Kaçış Manevrası Yapın!";
-                    
-                    // 3. Özellik Aktifse Yönsel Ses Uyarısı Ver
-                    let useSpatial = document.getElementById('chkSpatial').checked;
-                    if (useSpatial) {
-                        speakSpatial("Dikkat, sağ tarafta tehlike var.");
-                    } else {
-                        speakSpatial("Dikkat, önünüzde çukur var.");
-                    }
+                    ctx.fillText(`[AI] ${objName}`, boxX + 4, boxY - 6);
 
-                } else if (step % 55 === 25) {
-                    hud.innerText = "🧭 Rota Güvenli | Mesafe: 95m";
+                    let timestamp = new Date().toLocaleTimeString();
+                    if (objName.includes("Araç")) {
+                        let detectedPlate = samplePlates[Math.floor(Math.random() * samplePlates.length)];
+                        logTerminal.innerHTML += `<br>[${timestamp}] 🚗 PLAKA OKUNDU: <b style="color:#00ff66;">${detectedPlate}</b> (${objName})`;
+                        speakSpatial("Plaka okundu: " + detectedPlate);
+                    } else {
+                        logTerminal.innerHTML += `<br>[${timestamp}] 🔍 Nesne Tespit Edildi: <span style="color:#38bdf8;">${objName}</span>`;
+                    }
+                    logTerminal.scrollTop = logTerminal.scrollHeight;
+                }
+
+                // Çukur / Engel Tespiti (Tek Seferlik Hafif Bip Sesi ile)
+                if (step % 70 === 0) {
+                    let hazardX = w * 0.2 + Math.random() * (w * 0.4);
+                    let hazardY = h * 0.55 + Math.random() * (h * 0.2);
+                    
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(hazardX, hazardY, 100, 60);
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                    ctx.fillRect(hazardX, hazardY, 100, 60);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '11px Courier New';
+                    ctx.fillText('⚠️ ZEMİN BOZUK', hazardX + 5, hazardY - 8);
+                    
+                    hud.innerText = "⚠️ DİKKAT: Engel Algılandı!";
+                    playThreatBeep(); // Ses kirliliği yapmayan tek seferlik uyarı tonu
+                    speakSpatial("Dikkat, engel var.");
+                } else if (step % 70 === 35) {
+                    // 📍 Hedef Uzaklık Sayacı: Her saniye değil, 3 saniyede bir (step 35'te bir) güncellenir
+                    if (currentDistance > 5) currentDistance -= 3;
+                    
+                    hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m`;
                     let dirText = useCompass ? `Pusula: ${compassHeading}°` : "Pusula: Kapalı";
-                    telemetry.innerText = `HIZ: 32 km/s | ${dirText}`;
+                    telemetry.innerText = `HIZ: 28 km/s | ${dirText}`;
                 }
 
                 step++;
-            }, 100);
+            }, 80);
         }
 
         function stopARCamera() {
