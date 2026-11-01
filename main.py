@@ -123,7 +123,7 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & CVE/Looting</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & API Testleri</button>
             <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payload & Shell Üreticisi</button>
             <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Risk Grafikleri</button>
         </div>
@@ -147,7 +147,7 @@ HTML_TEMPLATE = """
                 <textarea id="customWordlist" placeholder="Hazır listeleri yukarıdan seçebilir veya buraya kendi yollarınızı yazabilirsiniz..."></textarea>
             </div>
 
-            <button onclick="startScan()">Enterprise Looting & CVE Taramasını Başlat</button>
+            <button onclick="startScan()">API Fuzzing & Looting Taramasını Başlat</button>
             
             <div id="status" class="loading" style="margin-top: 15px;"></div>
             
@@ -261,7 +261,7 @@ HTML_TEMPLATE = """
             if(!url) { alert('Lütfen geçerli bir hedef gir!'); return; }
             lastTarget = url;
             
-            statusDiv.innerHTML = "root@red-team-box:~# executing enterprise CVE matching, cloud bucket & looting scan...";
+            statusDiv.innerHTML = "root@red-team-box:~# executing API fuzzing, endpoint testing & CVE scan...";
             resultsDiv.style.display = "none";
             actionButtons.style.display = "none";
             resultsDiv.innerHTML = "";
@@ -622,12 +622,11 @@ def banner_grabbing(domain, open_ports):
         except: pass
     return banners
 
-# --- YENİ CVE & EXPLOIT EŞLEŞTİRİCİ ---
 CVE_DATABASE = {
     "apache/2.4.49": "CVE-2021-41773 (Path Traversal & RCE)",
     "apache/2.4.50": "CVE-2021-42013 (Path Traversal & RCE)",
-    "nginx": "Olası yanlış yapılandırma (Misconfiguration) kontrolü önerilir",
-    "openssh": "Versiyon bazlı sömürü (enumeration) riskleri incelenmeli"
+    "nginx": "Olası yanlış yapılandırma kontrolü önerilir",
+    "openssh": "Versiyon bazlı sömürü riskleri incelenmeli"
 }
 def match_cves(banner_str):
     matched = []
@@ -636,7 +635,6 @@ def match_cves(banner_str):
         if k in b_lower: matched.append(v)
     return matched
 
-# --- YENİ CLOUD S3 BUCKET & .GIT LOOTING TARAYICI ---
 def check_cloud_buckets(domain):
     base_name = domain.split('.')[0]
     buckets = [
@@ -653,7 +651,44 @@ def check_cloud_buckets(domain):
         except: pass
     return found_buckets
 
-# --- XSS & OPEN REDIRECT TESTİ ---
+# --- JAVASCRIPT ENDPOINT ÇIKARICI VE TEST MODÜLÜ ---
+def analyze_javascript_endpoints(target_url, html_content):
+    found = set()
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        for script in soup.find_all('script'):
+            src = script.get('src')
+            if src:
+                if src.startswith('http'): s_url = src
+                elif src.startswith('/'):
+                    p = urllib.parse.urlparse(target_url)
+                    s_url = f"{p.scheme}://{p.netloc}{src}"
+                else: continue
+                try:
+                    js_res = requests.get(s_url, timeout=2, verify=False)
+                    if js_res.status_code == 200:
+                        matches = re.findall(r'["\'](/api/[a-zA-Z0-9_/.-]+|/v[1-9]/[a-zA-Z0-9_/.-]+)["\']', js_res.text)
+                        for m in matches: found.add(m)
+                except: pass
+    except: pass
+    return list(found)
+
+def test_api_endpoints(target_url, endpoints):
+    api_results = []
+    parsed_base = urllib.parse.urlparse(target_url)
+    base = f"{parsed_base.scheme}://{parsed_base.netloc}"
+    
+    for ep in endpoints:
+        full_ep_url = ep if ep.startswith("http") else f"{base}{ep if ep.startswith('/') else '/' + ep}"
+        try:
+            r = requests.get(full_ep_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+            status = r.status_code
+            preview = r.text[:80].replace('\n', ' ')
+            api_results.append((full_ep_url, status, preview))
+        except:
+            api_results.append((full_ep_url, "Error", "Bağlantı Başarısız"))
+    return api_results
+
 def test_xss_open_redirect(target_url):
     findings = []
     xss_payload = "<script>alert(1)</script>"
@@ -664,8 +699,7 @@ def test_xss_open_redirect(target_url):
     for tu in test_urls:
         try:
             r = requests.get(tu, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
-            if xss_payload in r.text:
-                findings.append(tu)
+            if xss_payload in r.text: findings.append(tu)
         except: pass
     return findings
 
@@ -770,6 +804,19 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
             accessible_files.append(b)
     else:
         report += "  -> Doğrudan açık S3 bucket saptanamadı.\n"
+    report += "-" * 40 + "\n"
+
+    report += "[*] JavaScript API Endpoint Keşfi ve Test İstekleri...\n"
+    try:
+        endpoints = analyze_javascript_endpoints(target_url, r.text)
+        if endpoints:
+            api_test_results = test_api_endpoints(target_url, endpoints)
+            for ep_url, status, preview in api_test_results:
+                report += f"  [API TEST] {ep_url} -> Status: {status} | Önizleme: {preview}\n"
+                accessible_files.append(ep_url)
+        else:
+            report += "  -> Harici API endpoint bulunamadı.\n"
+    except: pass
     report += "-" * 40 + "\n"
 
     report += "[*] Aktif Zafiyet Taraması (SQLi, LFI & Reflected XSS)...\n"
