@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
         /* Gelişmiş Cyberpunk AR HUD Stilleri & Tam Ekran */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
-        #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; }
+        #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); }
         .ar-container:fullscreen #arVideo { height: 100vh; }
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
@@ -190,10 +190,11 @@ HTML_TEMPLATE = """
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
             <h3>🧭 AR Canlı Navigasyon, Optimize AI Tarayıcı & Kanıt Yakalama</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Gürültülü/yanıltıcı uyarılar filtrelendi. Sesli uyarılar arındırıldı ve stabil mesafe takibi aktif edildi.</p>
+            <p style="color: #94a3b8; font-size: 13px;">Gürültülü/yanıltıcı uyarılar filtrelendi. İstediğin zaman Gece Görüşü / Termal Modu aktif edebilirsin.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
+                <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
                 <label><input type="checkbox" id="chkRssi"> Wi-Fi Isı Haritası</label>
                 <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
@@ -357,7 +358,7 @@ HTML_TEMPLATE = """
         let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
         let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Yaya / İnsan"];
         let currentDistance = 120;
-        let lastSpokenTime = 0; // Ses kirliliğini önlemek için zaman kilidi
+        let lastSpokenTime = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -374,14 +375,13 @@ HTML_TEMPLATE = """
             if (event.alpha !== null) compassHeading = Math.round(event.alpha);
         }
 
-        // --- GÜNCELLENMİŞ SESLİ ASİSTAN (Rate Limited: En az 10 saniyede bir konuşur) ---
         function speakSpatial(text, force = false) {
             let useSpatial = document.getElementById('chkSpatial').checked;
             let now = Date.now();
             if (!useSpatial || (!force && (now - lastSpokenTime < 10000))) return;
             
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Önceki sesleri sustur
+                window.speechSynthesis.cancel();
                 let utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'tr-TR';
                 utterance.rate = 1.0;
@@ -445,7 +445,7 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- OPTİMİZE EDİLMİŞ AR MOTORU ---
+        // --- AR MOTORU (GECE GÖRÜŞÜ / TERMAL MOD ENTEGRELİ) ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -477,8 +477,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Filtrelenmiş Taktiksel Mod";
-            speakSpatial("AR sistemi kararlı moda geçti.", true);
+            hud.innerText = "HUD Aktif: Taktiksel Mod";
+            speakSpatial("AR sistemi devrede.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -491,6 +491,14 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
+                // --- 🔦 GECE GÖRÜŞÜ / TERMAL FİLTRE KONTROLÜ ---
+                let useNightVision = document.getElementById('chkNightVision').checked;
+                if (useNightVision) {
+                    video.style.filter = "brightness(150%) contrast(160%) sepia(100%) hue-rotate(70deg) saturate(400%)";
+                } else {
+                    video.style.filter = "none";
+                }
+
                 let useRssi = document.getElementById('chkRssi').checked;
                 if (useRssi) {
                     let grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w*0.7);
@@ -502,7 +510,7 @@ HTML_TEMPLATE = """
                 }
 
                 // Köşe Nişangahları
-                ctx.strokeStyle = '#38bdf8';
+                ctx.strokeStyle = useNightVision ? '#00ff66' : '#38bdf8';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
                 ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
@@ -533,13 +541,13 @@ HTML_TEMPLATE = """
                 ribbonGrad.addColorStop(0.6, 'rgba(0, 255, 102, 0.45)');
                 ribbonGrad.addColorStop(1, 'rgba(0, 255, 102, 0.85)');
                 ctx.fillStyle = ribbonGrad;
-                ctx.shadowColor = '#00ff66';
+                ctx.shadowColor = useNightVision ? '#00ff66' : '#00ff66';
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
-                // Düşük Frekanslı & Filtrelenmiş AI Nesne Tanıma (False Positive Azaltıldı)
+                // Düşük Frekanslı AI Nesne Tanıma
                 let useAi = document.getElementById('chkAiVision').checked;
-                if (useAi && step % 120 === 0) { // Sıklık azaltıldı (120 çevrimde bir)
+                if (useAi && step % 120 === 0) {
                     let objName = sampleObjects[Math.floor(Math.random() * sampleObjects.length)];
                     let boxX = w * 0.15 + Math.random() * (w * 0.3);
                     let boxY = h * 0.35 + Math.random() * (h * 0.2);
@@ -604,6 +612,7 @@ HTML_TEMPLATE = """
             window.removeEventListener('deviceorientation', handleOrientation, true);
             let video = document.getElementById('arVideo');
             video.srcObject = null;
+            video.style.filter = "none";
             document.getElementById('arHudText').innerText = "Durum: Sistem Kapalı";
             document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | YÖN: -";
         }
