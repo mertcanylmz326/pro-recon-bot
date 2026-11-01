@@ -69,7 +69,7 @@ LOGIN_TEMPLATE = """
 </html>
 """
 
-# --- ANA KONTROL PANELİ HTML ŞABLONU ---
+# --- ANA KONTROL PANELİ HTML ŞABLONU (Yeniden Tarama Desteğiyle) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -147,7 +147,7 @@ HTML_TEMPLATE = """
                 <textarea id="customWordlist" placeholder="Hazır listeleri yukarıdan seçebilir veya buraya kendi yollarınızı yazabilirsiniz..."></textarea>
             </div>
 
-            <button onclick="startScan()">API Fuzzing & Looting Taramasını Başlat</button>
+            <button onclick="startScan(false)">API Fuzzing & Looting Taramasını Başlat</button>
             
             <div id="status" class="loading" style="margin-top: 15px;"></div>
             
@@ -206,7 +206,7 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <h3>📁 Arşivlenen Hedefler ve Görsel Keşif</h3>
+            <h3>📁 Arşivlenen Hedefler ve Hızlı İşlemler</h3>
             <div id="databaseTableContainer">
                 <p style="color: #94a3b8;">Henüz kaydedilmiş site verisi yok.</p>
             </div>
@@ -251,17 +251,24 @@ HTML_TEMPLATE = """
             if(tabId === 'dataTab') { loadSiteDatabase(); }
         }
 
-        async function startScan() {
-            const url = document.getElementById('targetUrl').value.trim();
+        async function startScan(targetOverride = false) {
+            let url = targetOverride ? targetOverride : document.getElementById('targetUrl').value.trim();
             const wordlist = document.getElementById('customWordlist').value.trim();
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
             const actionButtons = document.getElementById('actionButtons');
             
             if(!url) { alert('Lütfen geçerli bir hedef gir!'); return; }
+            if(targetOverride) {
+                document.getElementById('targetUrl').value = url;
+                switchTab('scanTab');
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.querySelectorAll('.tab-btn')[2].classList.remove('active');
+            }
+
             lastTarget = url;
             
-            statusDiv.innerHTML = "root@red-team-box:~# executing API fuzzing, endpoint testing & CVE scan...";
+            statusDiv.innerHTML = `root@red-team-box:~# scanning target ${url} (API fuzzing, CVE & looting)...`;
             resultsDiv.style.display = "none";
             actionButtons.style.display = "none";
             resultsDiv.innerHTML = "";
@@ -279,7 +286,7 @@ HTML_TEMPLATE = """
                 currentReportText = data.report;
                 actionButtons.style.display = "flex";
             } catch (err) {
-                statusDiv.innerHTML = "❌ [HATA] Linux alt sistem komutu yürütülemedi!";
+                statusDiv.innerHTML = "❌ [HATA] Web servis taraması yürütülemedi!";
             }
         }
 
@@ -312,7 +319,7 @@ HTML_TEMPLATE = """
                         <th>Hedef Site</th>
                         <th>WAF</th>
                         <th>Not</th>
-                        <th>Dosyalar & PDF</th>
+                        <th>Hızlı İşlemler</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -327,7 +334,11 @@ HTML_TEMPLATE = """
                     <td><b>${item.target}</b></td>
                     <td>${item.waf}</td>
                     <td>${item.grade}</td>
-                    <td>${fileLinks}<br><a href="/api/download-pdf?target=${encodeURIComponent(item.target)}" style="color: #f87171; font-weight: bold; text-decoration: underline;" target="_blank">📥 PDF İndir</a></td>
+                    <td>
+                        ${fileLinks}<br>
+                        <button onclick="startScan('${item.target}')" style="padding: 6px 12px; font-size: 12px; margin-top: 6px; background: #0284c7;">⚡ Yeniden Tara</button>
+                        <a href="/api/download-pdf?target=${encodeURIComponent(item.target)}" style="color: #f87171; font-weight: bold; text-decoration: underline; margin-left: 8px;" target="_blank">📥 PDF</a>
+                    </td>
                 </tr>`;
             });
             html += `</tbody></table>`;
@@ -651,7 +662,6 @@ def check_cloud_buckets(domain):
         except: pass
     return found_buckets
 
-# --- JAVASCRIPT ENDPOINT ÇIKARICI VE TEST MODÜLÜ ---
 def analyze_javascript_endpoints(target_url, html_content):
     found = set()
     try:
