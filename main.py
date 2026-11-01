@@ -109,14 +109,14 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & Tam Ekran */
-        .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); }
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & Auto-Dimming */
+        .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
-        #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); }
+        #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
         .ar-container:fullscreen #arVideo { height: 100vh; }
         #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s, border-color 0.3s; }
         .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
 
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
@@ -189,11 +189,12 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Canlı Navigasyon, Şerit Takip & Kanıt Yakalama</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Gürültülü uyarılar filtrelendi. Stabil şerit takip ve şerit ihlal asistanı devrede.</p>
+            <h3>🧭 AR Canlı Navigasyon, Auto-Dimming & Şerit Takip</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Gece karartma modu ve yapay zeka destekli HUD asistanı entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
+                <label><input type="checkbox" id="chkAutoDim" checked> 🌙 Auto-Dimming (Gece Karartma)</label>
                 <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
                 <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
@@ -216,7 +217,7 @@ HTML_TEMPLATE = """
             </div>
 
             <div class="ar-container" id="arBox">
-                <div class="ar-hud">
+                <div class="ar-hud" id="arHudBox">
                     <span id="arHudText">Durum: Bekleniyor...</span>
                     <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | YÖN: -</span>
                 </div>
@@ -227,7 +228,7 @@ HTML_TEMPLATE = """
             </div>
 
             <h4 style="margin-top: 20px; color: #38bdf8;">📋 Şerit İhlal & AI Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Şerit takip asistanı aktif.</div>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Şerit takip asistanı ve auto-dimming hazır.</div>
         </div>
 
         <!-- Hash Cracker Sekmesi -->
@@ -374,7 +375,7 @@ HTML_TEMPLATE = """
 
         function handleOrientation(event) {
             if (event.alpha !== null) compassHeading = Math.round(event.alpha);
-            if (event.beta !== null) deviceBeta = Math.round(event.beta); // Sağa sola yatış açısı (Tilt)
+            if (event.beta !== null) deviceBeta = Math.round(event.beta);
         }
 
         function speakSpatial(text, force = false) {
@@ -447,11 +448,12 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- AR MOTORU (ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI ENTEGRELİ) ---
+        // --- AR MOTORU (AUTO-DIMMING & ŞERİT TAKİP ENTEGRELİ) ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
             let telemetry = document.getElementById('arTelemetry');
+            let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
             let logTerminal = document.getElementById('arLogTerminal');
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
@@ -479,8 +481,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Şerit Takip Devrede";
-            speakSpatial("Şerit takip asistanı devrede.", true);
+            hud.innerText = "HUD Aktif: Auto-Dimming & Şerit Takip Devrede";
+            speakSpatial("AR Navigasyon ve otomatik karartma başlatıldı.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -493,11 +495,26 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
+                // --- ☀️ AKILLI OTOMATİK PARLAKLIK & KARARTMA (AUTO-DIMMING) ---
+                let useAutoDim = document.getElementById('chkAutoDim').checked;
+                let currentHour = new Date().getHours();
+                // Gece modu: 20:00 ile 06:00 arası veya manuel zorlama
+                let isNight = currentHour >= 20 || currentHour < 6;
+
                 let useNightVision = document.getElementById('chkNightVision').checked;
                 if (useNightVision) {
                     video.style.filter = "brightness(150%) contrast(160%) sepia(100%) hue-rotate(70deg) saturate(400%)";
+                    hudBox.style.background = "rgba(11, 15, 21, 0.85)";
+                    hudBox.style.borderColor = "#00ff66";
+                } else if (useAutoDim && isNight) {
+                    // Gözü yormayan yumuşak gece karartma filtresi
+                    video.style.filter = "brightness(65%) contrast(125%) saturate(80%)";
+                    hudBox.style.background = "rgba(5, 7, 10, 0.95)";
+                    hudBox.style.borderColor = "#15803d"; // Gece yeşili hud çerçevesi
                 } else {
-                    video.style.filter = "none";
+                    video.style.filter = "brightness(100%) contrast(100%)";
+                    hudBox.style.background = "rgba(11, 15, 21, 0.85)";
+                    hudBox.style.borderColor = "#00ff66";
                 }
 
                 let useRssi = document.getElementById('chkRssi').checked;
@@ -516,41 +533,36 @@ HTML_TEMPLATE = """
                 ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
                 ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
 
-                // --- 🚧 ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI (STABLE LANE DEPARTURE) ---
+                // --- 🚧 ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI ---
                 let useLane = document.getElementById('chkLane').checked;
                 let isLaneViolated = false;
                 if (useLane) {
-                    // Şerit çizgileri (Sol ve Sağ şerit çizgisi kılavuzları)
                     ctx.strokeStyle = 'rgba(0, 255, 102, 0.6)';
                     ctx.lineWidth = 3;
                     ctx.setLineDash([15, 10]);
                     
-                    // Sol şerit çizgisi
                     ctx.beginPath();
                     ctx.moveTo(w * 0.25, h);
                     ctx.lineTo(w * 0.42, h * 0.48);
                     ctx.stroke();
 
-                    // Sağ şerit çizgisi
                     ctx.beginPath();
                     ctx.moveTo(w * 0.75, h);
                     ctx.lineTo(w * 0.58, h * 0.48);
                     ctx.stroke();
-                    ctx.setLineDash([]); // Sıfırla
+                    ctx.setLineDash([]);
 
-                    // Cihazın yatış açısına (beta) göre şerit ihlali kontrolü (Eşik: +- 25 derece aşırı yatış/sapma)
                     if (Math.abs(deviceBeta) > 25) {
                         isLaneViolated = true;
                     }
                 }
 
-                // Şerit İhlali Gerçekleştiyse Net Uyarı Ver
                 let timestamp = new Date().toLocaleTimeString();
                 if (useLane && isLaneViolated) {
                     let now = Date.now();
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 5;
-                    ctx.strokeRect(10, 10, w - 20, h - 20); // Kırmızı ekran çerçevesi
+                    ctx.strokeRect(10, 10, w - 20, h - 20);
 
                     ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
                     ctx.fillRect(w / 2 - 130, 60, 260, 35);
@@ -560,7 +572,7 @@ HTML_TEMPLATE = """
 
                     hud.innerText = "⚠️ DİKKAT: Şeritten Sapma Algılandı!";
                     
-                    if (now - lastLaneWarningTime > 6000) { // Spam önleyici zaman kilidi
+                    if (now - lastLaneWarningTime > 6000) {
                         lastLaneWarningTime = now;
                         playThreatBeep();
                         speakSpatial("Dikkat, şerit ihlali!", true);
@@ -644,7 +656,8 @@ HTML_TEMPLATE = """
                     playThreatBeep();
                 } else if (!isLaneViolated && step % 100 === 50) {
                     if (currentDistance > 5) currentDistance -= 3;
-                    hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m`;
+                    let dimStatus = (useAutoDim && isNight) ? " [🌙 Gece Modu]" : "";
+                    hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m${dimStatus}`;
                     let dirText = useCompass ? `Pusula: ${compassHeading}°` : "Pusula: Kapalı";
                     telemetry.innerText = `HIZ: 28 km/s | ${dirText}`;
                 }
