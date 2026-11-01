@@ -142,12 +142,12 @@ HTML_TEMPLATE = """
 
         <!-- Gerçek Wi-Fi / Termux Ağ Denetim Sekmesi -->
         <div id="wifiTab" class="tab-content">
-            <h3>📶 Real Wi-Fi Audit & Interface Controller (Aircrack / Termux Bridge)</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Telefon (Termux) üzerinden yerel kablosuz kart veya ağ arabirimlerini yönetin ve komut çalıştırın.</p>
+            <h3>📶 Real Wi-Fi Audit & Interface Controller (Termux / Root)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Termux / Kali üzerinden yerel kablosuz arabirimleri yönetin ve komut çalıştırın.</p>
             <div class="form-group"><label>Wireless Interface (örn: wlan0, wlan0mon):</label><input type="text" id="wifiInterface" value="wlan0"></div>
             <div class="form-group"><label>Hedef BSSID / MAC Adresi (İsteğe bağlı):</label><input type="text" id="wifiBssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="secondary" onclick="runWifiAction('interfaces')">Interface Listele (iwconfig)</button>
+                <button class="secondary" onclick="runWifiAction('interfaces')">Interface Listele (ip link)</button>
                 <button class="danger" onclick="runWifiAction('monitor')">Monitor Mode Aç</button>
                 <button class="success" onclick="runWifiAction('scan')">Kablosuz Ağları Tara</button>
             </div>
@@ -388,16 +388,16 @@ def api_wifi_audit():
     if action == "interfaces":
         cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
     elif action == "monitor":
-        cmd = f"sudo airmon-ng start {iface} || ip link set {iface} down 2>/dev/null; iwconfig {iface} mode monitor 2>/dev/null; ip link set {iface} up 2>/dev/null || echo 'Monitor mode için root yetkisi veya desteklenen sürücü gerekiyor.'"
+        cmd = f"airmon-ng start {iface} 2>/dev/null || (ip link set {iface} down 2>/dev/null && iwconfig {iface} mode monitor 2>/dev/null && ip link set {iface} up 2>/dev/null) || echo 'Monitor mode basarisiz. Kartiniz monitor mode desteklemiyor veya root yetkiniz yok.'"
     elif action == "scan":
-        cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list"
+        cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list 2>/dev/null || echo 'Tarama araclari (airodump-ng / iwlist) bulunamadi (127).'"
     else:
         cmd = "echo 'Invalid action'"
         
     try:
         out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=6).decode('utf-8', errors='ignore')
     except Exception as e:
-        out = f"[-] Sistem Hatası: Komut çalıştırılamadı veya bu araç sistemde yüklü değil (127).\nTermux / Kali üzerine gerekli paketleri kurmak için:\n'pkg install wireless-tools aircrack-ng net-tools' (Termux) veya 'apt install aircrack-ng' (Kali)\n\nHata Detayı: {str(e)}"
+        out = f"[-] Sistem Hatasi: Komut calistirilaamadi veya aracta eksiklik var (127).\nTermux uzerine kurmak icin:\n'pkg install wireless-tools aircrack-ng net-tools'\n\nHata Detayi: {str(e)}"
         
     return jsonify({"output": f"root@kali:~# {cmd}\n\n{out}"})
 
