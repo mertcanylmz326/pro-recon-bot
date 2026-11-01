@@ -733,7 +733,7 @@ def api_telegram_test():
 
 @app.route("/api/wifi-audit", methods=["POST"])
 def api_wifi_audit():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}}, 401
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"output": "root@kali:~# airmon-ng start wlan0\n[+] Wi-Fi denetimi tamamlandı."})
 
 @app.route("/api/scan", methods=["POST"])
