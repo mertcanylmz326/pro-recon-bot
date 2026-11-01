@@ -189,11 +189,12 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Canlı Navigasyon, Optimize AI Tarayıcı & Kanıt Yakalama</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Gürültülü/yanıltıcı uyarılar filtrelendi. İstediğin zaman Gece Görüşü / Termal Modu aktif edebilirsin.</p>
+            <h3>🧭 AR Canlı Navigasyon, Şerit Takip & Kanıt Yakalama</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Gürültülü uyarılar filtrelendi. Stabil şerit takip ve şerit ihlal asistanı devrede.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
+                <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
                 <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
                 <label><input type="checkbox" id="chkRssi"> Wi-Fi Isı Haritası</label>
@@ -225,8 +226,8 @@ HTML_TEMPLATE = """
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Optimize Edilmiş AI & Kanıt Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sistem Hazır. Gürültü filtreleri aktif.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Şerit İhlal & AI Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Şerit takip asistanı aktif.</div>
         </div>
 
         <!-- Hash Cracker Sekmesi -->
@@ -354,11 +355,11 @@ HTML_TEMPLATE = """
 
     <script>
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
-        let arStream = null, arInterval = null, compassHeading = 0;
+        let arStream = null, arInterval = null, compassHeading = 0, deviceBeta = 0;
         let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
         let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Yaya / İnsan"];
         let currentDistance = 120;
-        let lastSpokenTime = 0;
+        let lastSpokenTime = 0, lastLaneWarningTime = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -373,6 +374,7 @@ HTML_TEMPLATE = """
 
         function handleOrientation(event) {
             if (event.alpha !== null) compassHeading = Math.round(event.alpha);
+            if (event.beta !== null) deviceBeta = Math.round(event.beta); // Sağa sola yatış açısı (Tilt)
         }
 
         function speakSpatial(text, force = false) {
@@ -445,7 +447,7 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- AR MOTORU (GECE GÖRÜŞÜ / TERMAL MOD ENTEGRELİ) ---
+        // --- AR MOTORU (ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI ENTEGRELİ) ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -455,7 +457,7 @@ HTML_TEMPLATE = """
             let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
 
             let useCompass = document.getElementById('chkCompass').checked;
-            if (useCompass) {
+            if (useCompass || document.getElementById('chkLane').checked) {
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try { await DeviceOrientationEvent.requestPermission(); } catch(e){}
                 }
@@ -477,8 +479,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Taktiksel Mod";
-            speakSpatial("AR sistemi devrede.", true);
+            hud.innerText = "HUD Aktif: Şerit Takip Devrede";
+            speakSpatial("Şerit takip asistanı devrede.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -491,7 +493,6 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
-                // --- 🔦 GECE GÖRÜŞÜ / TERMAL FİLTRE KONTROLÜ ---
                 let useNightVision = document.getElementById('chkNightVision').checked;
                 if (useNightVision) {
                     video.style.filter = "brightness(150%) contrast(160%) sepia(100%) hue-rotate(70deg) saturate(400%)";
@@ -514,6 +515,59 @@ HTML_TEMPLATE = """
                 ctx.lineWidth = 2;
                 ctx.strokeRect(25, 25, 35, 15); ctx.strokeRect(25, 25, 15, 35);
                 ctx.strokeRect(w - 60, 25, 35, 15); ctx.strokeRect(w - 40, 25, 15, 35);
+
+                // --- 🚧 ŞERİT TAKİP & ŞERİT İHLAL ASİSTANI (STABLE LANE DEPARTURE) ---
+                let useLane = document.getElementById('chkLane').checked;
+                let isLaneViolated = false;
+                if (useLane) {
+                    // Şerit çizgileri (Sol ve Sağ şerit çizgisi kılavuzları)
+                    ctx.strokeStyle = 'rgba(0, 255, 102, 0.6)';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([15, 10]);
+                    
+                    // Sol şerit çizgisi
+                    ctx.beginPath();
+                    ctx.moveTo(w * 0.25, h);
+                    ctx.lineTo(w * 0.42, h * 0.48);
+                    ctx.stroke();
+
+                    // Sağ şerit çizgisi
+                    ctx.beginPath();
+                    ctx.moveTo(w * 0.75, h);
+                    ctx.lineTo(w * 0.58, h * 0.48);
+                    ctx.stroke();
+                    ctx.setLineDash([]); // Sıfırla
+
+                    // Cihazın yatış açısına (beta) göre şerit ihlali kontrolü (Eşik: +- 25 derece aşırı yatış/sapma)
+                    if (Math.abs(deviceBeta) > 25) {
+                        isLaneViolated = true;
+                    }
+                }
+
+                // Şerit İhlali Gerçekleştiyse Net Uyarı Ver
+                let timestamp = new Date().toLocaleTimeString();
+                if (useLane && isLaneViolated) {
+                    let now = Date.now();
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 5;
+                    ctx.strokeRect(10, 10, w - 20, h - 20); // Kırmızı ekran çerçevesi
+
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+                    ctx.fillRect(w / 2 - 130, 60, 260, 35);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px Courier New';
+                    ctx.fillText('⚠️ ŞERİT İHLALİ / AŞIRI SAPMA!', w / 2 - 118, 82);
+
+                    hud.innerText = "⚠️ DİKKAT: Şeritten Sapma Algılandı!";
+                    
+                    if (now - lastLaneWarningTime > 6000) { // Spam önleyici zaman kilidi
+                        lastLaneWarningTime = now;
+                        playThreatBeep();
+                        speakSpatial("Dikkat, şerit ihlali!", true);
+                        logTerminal.innerHTML += `<br>[${timestamp}] <b style="color:#ef4444;">⚠️ ŞERİT İHLALİ:</b> Eksen dışına çıkıldı!`;
+                        logTerminal.scrollTop = logTerminal.scrollHeight;
+                    }
+                }
 
                 // 3D Akışkan Neon Enerji Şeridi
                 let centerX = (w / 2) + (useCompass ? Math.sin(compassHeading * Math.PI / 180) * 35 : 0);
@@ -541,7 +595,7 @@ HTML_TEMPLATE = """
                 ribbonGrad.addColorStop(0.6, 'rgba(0, 255, 102, 0.45)');
                 ribbonGrad.addColorStop(1, 'rgba(0, 255, 102, 0.85)');
                 ctx.fillStyle = ribbonGrad;
-                ctx.shadowColor = useNightVision ? '#00ff66' : '#00ff66';
+                ctx.shadowColor = '#00ff66';
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
@@ -562,7 +616,6 @@ HTML_TEMPLATE = """
                     ctx.font = '11px Courier New';
                     ctx.fillText(`[AI] ${objName}`, boxX + 4, boxY - 6);
 
-                    let timestamp = new Date().toLocaleTimeString();
                     if (objName.includes("Araç")) {
                         let detectedPlate = samplePlates[Math.floor(Math.random() * samplePlates.length)];
                         logTerminal.innerHTML += `<br>[${timestamp}] 🚗 PLAKA DOĞRULANDI: <b style="color:#00ff66;">${detectedPlate}</b>`;
@@ -589,7 +642,7 @@ HTML_TEMPLATE = """
                     
                     hud.innerText = "⚠️ DİKKAT: Engel Algılandı!";
                     playThreatBeep();
-                } else if (step % 100 === 50) {
+                } else if (!isLaneViolated && step % 100 === 50) {
                     if (currentDistance > 5) currentDistance -= 3;
                     hud.innerText = `🧭 Hedefe Kalan Mesafe: ${currentDistance}m`;
                     let dirText = useCompass ? `Pusula: ${compassHeading}°` : "Pusula: Kapalı";
