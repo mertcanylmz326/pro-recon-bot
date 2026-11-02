@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & 0-100 Göstergesi */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & Hız Limiti Tabelası */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
@@ -121,6 +121,11 @@ HTML_TEMPLATE = """
         .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
         .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
         .ar-drag-hud { position: absolute; bottom: 15px; left: 15px; background: rgba(11, 15, 21, 0.9); border: 1px solid #ef4444; padding: 8px 14px; border-radius: 6px; font-size: 12px; color: #ef4444; z-index: 10; font-weight: bold; }
+        
+        /* Dinamik Hız Limiti Tabelası (Klasik Kırmızı Çember) */
+        .ar-speed-limit-hud { position: absolute; top: 125px; right: 15px; width: 48px; height: 48px; background: #ffffff; border: 4px solid #dc2626; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 15px; color: #000000; box-shadow: 0 0 12px rgba(220,38,38,0.6); z-index: 10; transition: 0.3s; }
+        .ar-speed-limit-hud.speeding { background: #dc2626; color: #ffffff; animation: pulseLimit 0.6s infinite alternate; }
+        @keyframes pulseLimit { from { transform: scale(1); } to { transform: scale(1.12); } }
 
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .ar-controls label { color: #e2e8f0; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
@@ -193,19 +198,18 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Navigasyon, Yakıt, ETA & 0-100 Drag Kronometresi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">0-100 hızlanma testi, yakıt durumu, ETA ve kara kutu telemetrisi entegre çalışır.</p>
+            <h3>🧭 AR Navigasyon, Yakıt, ETA, 0-100 & Dinamik Hız Limiti</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Dinamik hız limiti tabelası, aşırı hız uyarıları, yakıt, ETA ve drag kronometresi entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
                 <label><input type="checkbox" id="chkAutoDim" checked> 🌙 Auto-Dimming (Gece Karartma)</label>
                 <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
+                <label><input type="checkbox" id="chkSpeedLimit" checked> 🚸 Dinamik Hız Limiti Tabelası</label>
                 <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
-                <label><input type="checkbox" id="chkRssi"> Wi-Fi Isı Haritası</label>
                 <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
-                <label><input type="checkbox" id="chkAiVision" checked> Optimize AI Tarayıcı</label>
-                <label><input type="checkbox" id="chkAudioAlarm"> 🚨 Sesli Engel Alarmı</label>
+                <label><input type="checkbox" id="chkAudioAlarm" checked> 🚨 Sesli Engel / Hız Alarmı</label>
             </div>
 
             <div class="form-group">
@@ -229,26 +233,27 @@ HTML_TEMPLATE = """
                 </div>
                 <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
                 <div id="arDragHud" class="ar-drag-hud">⏱️ 0-100 Drag: Hazır (0.00s)</div>
+                <div id="arSpeedLimitHud" class="ar-speed-limit-hud">50</div>
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Drag Test & Kara Kutu Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Drag kronometresi ve telemetri kayıt sistemi aktif.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Hız Limiti & Kara Kutu Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Dinamik hız limiti tabelası ve telemetri kayıt sistemi aktif.</div>
         </div>
 
         <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
         <div id="drivingTab" class="tab-content">
             <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini ve 0-100 test sonuçlarını buradan indirebilirsin.</p>
+            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini ve hız ihlalleri raporunu buradan indirebilirsin.</p>
             <div id="drivingReportsContainer">
                 <p style='color:#94a3b8;'>Henüz kaydedilmiş sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
             </div>
         </div>
 
-        <!-- Hash Cracker Sekmesi -->
+        <!-- Diğer Standart Sekmeler -->
         <div id="crackerTab" class="tab-content">
             <h3>🔑 Hash Cracker & Şifre Çözücü</h3>
             <div class="form-group"><label>Hash Tipi:</label><select id="hashType"><option value="md5">MD5</option><option value="sha256">SHA-256</option></select></div>
@@ -258,38 +263,26 @@ HTML_TEMPLATE = """
             <div id="crackResults" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
-        <!-- Shell Listener Sekmesi -->
         <div id="shellListenerTab" class="tab-content">
             <h3>💻 Reverse Shell Dinleyicisi (Multi-Handler)</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Sunucu üzerinde belirtilen portu dinlemeye alarak gelen reverse shell bağlantılarını yönetin.</p>
             <div class="form-group"><label>Dinlenecek Port (LPORT):</label><input type="number" id="listenerPort" value="4444"></div>
             <button class="success" onclick="startListener()">Dinlemeyi Başlat</button>
             <div id="listenerStatus" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
-        <!-- Telegram Test Sekmesi -->
         <div id="telegramTab" class="tab-content">
             <h3>🤖 Telegram Bot Notification Tester</h3>
-            <div class="form-group"><label>Telegram Chat ID:</label><input type="text" id="testChatId" value="{{ default_chat_id }}" placeholder="örn: 123456789"></div>
+            <div class="form-group"><label>Telegram Chat ID:</label><input type="text" id="testChatId" value="{{ default_chat_id }}"></div>
             <button class="success" onclick="sendTelegramTest()">🚀 Test Mesajı Gönder</button>
             <div id="telegramTestStatus" class="terminal" style="display:none; margin-top: 15px;"></div>
         </div>
 
-        <!-- Wi-Fi Denetim Sekmesi -->
         <div id="wifiTab" class="tab-content">
             <h3>📶 Real Wi-Fi Audit & Interface Controller</h3>
-            <div class="form-group"><label>Wireless Interface:</label><input type="text" id="wifiInterface" value="wlan0"></div>
-            <div class="form-group"><label>Hedef BSSID / MAC:</label><input type="text" id="wifiBssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="secondary" onclick="runWifiAction('interfaces')">Interface Listele</button>
-                <button class="danger" onclick="runWifiAction('monitor')">Monitor Mode Aç</button>
-                <button class="success" onclick="runWifiAction('scan')">Ağları Tara</button>
-            </div>
-            <div id="wifiStatus" class="loading" style="margin-top: 15px;"></div>
-            <div id="wifiResults" class="terminal" style="display:none;"></div>
+            <button class="success" onclick="runWifiAction('scan')">Ağları Tara</button>
+            <div id="wifiResults" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
-        <!-- Diğer Sekmeler -->
         <div id="niktoTab" class="tab-content">
             <h3>Nikto Web Vulnerability Scanner</h3>
             <div class="form-group"><label>Target URL:</label><input type="text" id="niktoTarget" placeholder="https://example.com"></div>
@@ -375,8 +368,9 @@ HTML_TEMPLATE = """
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
         let arStream = null, arInterval = null, compassHeading = 0, deviceBeta = 0;
         let currentDistance = 150, currentSpeed = 35, fuelLevel = 85, drivingRange = 240;
-        let sessionLogs = [], lastSpokenTime = 0, lastLaneWarningTime = 0;
+        let sessionLogs = [], lastSpokenTime = 0, lastLaneWarningTime = 0, lastSpeedWarningTime = 0;
         let dragTesting = false, dragStartTime = 0, bestDragTime = null;
+        let currentSpeedLimit = 50;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -462,7 +456,6 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- 0-100 DRAG KRONOMETRESİ BAŞLAT ---
         function startDragTest() {
             if(!arStream) { alert("Önce AR Kamerayı açmalısın kanka!"); return; }
             dragTesting = true;
@@ -475,13 +468,14 @@ HTML_TEMPLATE = """
             logTerminal.scrollTop = logTerminal.scrollHeight;
         }
 
-        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA & DRAG TESTİ ---
+        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA, DRAG & HIZ LİMİTİ ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
             let telemetry = document.getElementById('arTelemetry');
             let fuelHud = document.getElementById('arFuelHud');
             let dragHud = document.getElementById('arDragHud');
+            let speedLimitHud = document.getElementById('arSpeedLimitHud');
             let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
             let logTerminal = document.getElementById('arLogTerminal');
@@ -507,8 +501,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Drag Testi & Yakıt Hazır";
-            speakSpatial("AR Navigasyon ve 0-100 drag kronometresi aktif.", true);
+            hud.innerText = "HUD Aktif: Hız Limiti & Telemetri Devrede";
+            speakSpatial("AR Navigasyon ve hız limiti denetimi başlatıldı.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -538,6 +532,40 @@ HTML_TEMPLATE = """
                     video.style.filter = "brightness(100%) contrast(100%)";
                     hudBox.style.background = "rgba(11, 15, 21, 0.85)";
                     hudBox.style.borderColor = "#00ff66";
+                }
+
+                // Dinamik Hız Limiti Güncelleme Simülasyonu (Her 150 adımda bir hız limiti değişir)
+                let useSpeedLimit = document.getElementById('chkSpeedLimit').checked;
+                if (useSpeedLimit) {
+                    speedLimitHud.style.display = "flex";
+                    if (step > 0 && step % 150 === 0) {
+                        let limits = [30, 50, 82, 110];
+                        currentSpeedLimit = limits[Math.floor(Math.random() * limits.length)];
+                        speedLimitHud.innerText = currentSpeedLimit;
+                        let timestamp = new Date().toLocaleTimeString();
+                        sessionLogs.push(`[${timestamp}] 🚸 Hız Limiti Güncellendi: ${currentSpeedLimit} km/s`);
+                        logTerminal.innerHTML += `<br>[${timestamp}] 🚸 Yasal Hız Limiti Değişti: <b style="color:#facc15;">${currentSpeedLimit} km/s</b>`;
+                        logTerminal.scrollTop = logTerminal.scrollHeight;
+                    }
+
+                    // Aşırı Hız Kontrolü
+                    if (currentSpeed > currentSpeedLimit) {
+                        speedLimitHud.classList.add('speeding');
+                        let now = Date.now();
+                        if (now - lastSpeedWarningTime > 5000) {
+                            lastSpeedWarningTime = now;
+                            playThreatBeep();
+                            speakSpatial(`Dikkat! Hız sınırını aştınız. Sınır ${currentSpeedLimit} kilometre.`, true);
+                            let timestamp = new Date().toLocaleTimeString();
+                            sessionLogs.push(`[${timestamp}] 🚨 AŞIRI HIZ İHLALİ: Hız ${currentSpeed} km/s (Sınır: ${currentSpeedLimit})`);
+                            logTerminal.innerHTML += `<br>[${timestamp}] <b style="color:#ef4444;">🚨 AŞIRI HIZ İHLALİ!</b> Hız: ${currentSpeed} km/s`;
+                            logTerminal.scrollTop = logTerminal.scrollHeight;
+                        }
+                    } else {
+                        speedLimitHud.classList.remove('speeding');
+                    }
+                } else {
+                    speedLimitHud.style.display = "none";
                 }
 
                 // 2. Şerit Takip Asistanı
@@ -601,7 +629,7 @@ HTML_TEMPLATE = """
                 // ⏱️ 0-100 Drag Kronometre Simülasyonu
                 if (dragTesting) {
                     if (currentSpeed < 100) {
-                        currentSpeed += 6; // Simüle edilen ivmelenme
+                        currentSpeed += 6;
                         if (currentSpeed > 100) currentSpeed = 100;
                         let elapsed = ((performance.now() - dragStartTime) / 1000).toFixed(2);
                         dragHud.innerText = `⏱️ 0-100 Testi: ${currentSpeed} km/s (${elapsed}s)`;
@@ -632,7 +660,7 @@ HTML_TEMPLATE = """
 
                 // Canlı Kara Kutu Telemetri Kaydı
                 if (step % 40 === 0) {
-                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | Yakıt: %${Math.round(fuelLevel)} | Kalan Mesafe: ${currentDistance}m | ETA: ${Math.ceil(currentDistance / 35)}dk`;
+                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | Sınır: ${currentSpeedLimit} | Yakıt: %${Math.round(fuelLevel)} | Kalan: ${currentDistance}m`;
                     sessionLogs.push(logStr);
                     logTerminal.innerHTML += `<br>` + logStr;
                     logTerminal.scrollTop = logTerminal.scrollHeight;
@@ -668,7 +696,7 @@ HTML_TEMPLATE = """
             };
             let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
             let data = await res.json();
-            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden 0-100 sonuçlarını içeren kara kutu raporunu indirebilirsin.");
+            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden hız ihlalleri ve drag sonuçlarını içeren raporu indirebilirsin.");
             switchTab('drivingTab');
         }
 
