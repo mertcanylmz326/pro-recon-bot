@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & Yakıt / ETA */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & 0-100 Göstergesi */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
@@ -120,6 +120,7 @@ HTML_TEMPLATE = """
         .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s, border-color 0.3s; }
         .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
         .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
+        .ar-drag-hud { position: absolute; bottom: 15px; left: 15px; background: rgba(11, 15, 21, 0.9); border: 1px solid #ef4444; padding: 8px 14px; border-radius: 6px; font-size: 12px; color: #ef4444; z-index: 10; font-weight: bold; }
 
         .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .ar-controls label { color: #e2e8f0; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
@@ -192,8 +193,8 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Canlı Navigasyon, Auto-Dimming, Yakıt & ETA</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Yakıt tüketimi, menzil, dinamik varış süresi (ETA) ve gece karartma modu entegre çalışır.</p>
+            <h3>🧭 AR Navigasyon, Yakıt, ETA & 0-100 Drag Kronometresi</h3>
+            <p style="color: #94a3b8; font-size: 13px;">0-100 hızlanma testi, yakıt durumu, ETA ve kara kutu telemetrisi entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
@@ -214,6 +215,7 @@ HTML_TEMPLATE = """
             
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                 <button class="success" onclick="startARCamera()">📸 Kamerayı Aç & AR Başlat</button>
+                <button class="secondary" onclick="startDragTest()">⏱️ 0-100 Testini Başlat</button>
                 <button class="success" onclick="finishDrivingSession()">🏁 Sürüşü Bitir & Rapor Al</button>
                 <button class="secondary" onclick="toggleFullScreen()">📺 Tam Ekran</button>
                 <button class="success" onclick="takeSnapshot()">📷 Kanıt / Fotoğraf Al</button>
@@ -226,20 +228,21 @@ HTML_TEMPLATE = """
                     <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | ETA: --</span>
                 </div>
                 <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
+                <div id="arDragHud" class="ar-drag-hud">⏱️ 0-100 Drag: Hazır (0.00s)</div>
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
                 <video id="arVideo" autoplay playsinline muted></video>
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Şerit İhlal & Kara Kutu Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sürüş kara kutusu ve yakıt simülasyonu hazır.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Drag Test & Kara Kutu Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Drag kronometresi ve telemetri kayıt sistemi aktif.</div>
         </div>
 
         <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
         <div id="drivingTab" class="tab-content">
             <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini ve raporları buradan indirebilirsin.</p>
+            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini ve 0-100 test sonuçlarını buradan indirebilirsin.</p>
             <div id="drivingReportsContainer">
                 <p style='color:#94a3b8;'>Henüz kaydedilmiş sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
             </div>
@@ -371,10 +374,9 @@ HTML_TEMPLATE = """
     <script>
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
         let arStream = null, arInterval = null, compassHeading = 0, deviceBeta = 0;
-        let samplePlates = ["34 MTR 2026", "06 ANK 06", "35 IZMR 35", "34 KLI 41", "16 BUR 16"];
-        let sampleObjects = ["Araç [Honda Dio 110]", "Tabela [Hız Sınırı 50]", "Yaya / İnsan"];
         let currentDistance = 150, currentSpeed = 35, fuelLevel = 85, drivingRange = 240;
         let sessionLogs = [], lastSpokenTime = 0, lastLaneWarningTime = 0;
+        let dragTesting = false, dragStartTime = 0, bestDragTime = null;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -460,16 +462,29 @@ HTML_TEMPLATE = """
             speakSpatial("Kanıt görüntüsü kaydedildi.", true);
         }
 
-        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA & Kāra Kutu ---
+        // --- 0-100 DRAG KRONOMETRESİ BAŞLAT ---
+        function startDragTest() {
+            if(!arStream) { alert("Önce AR Kamerayı açmalısın kanka!"); return; }
+            dragTesting = true;
+            currentSpeed = 0;
+            dragStartTime = performance.now();
+            document.getElementById('arDragHud').innerText = "⏱️ 0-100 Testi: Ölçülüyor... (0.00s)";
+            speakSpatial("0-100 drag testi başlatıldı, gazı kökle!", true);
+            let logTerminal = document.getElementById('arLogTerminal');
+            logTerminal.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ⏱️ 0-100 Drag kronometresi başlatıldı!`;
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+        }
+
+        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA & DRAG TESTİ ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
             let telemetry = document.getElementById('arTelemetry');
             let fuelHud = document.getElementById('arFuelHud');
+            let dragHud = document.getElementById('arDragHud');
             let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
             let logTerminal = document.getElementById('arLogTerminal');
-            let dest = document.getElementById('arDestination').value || 'Hedef Nokta';
 
             sessionLogs = [];
             fuelLevel = 85;
@@ -492,8 +507,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Yakıt & ETA Devrede";
-            speakSpatial("AR Navigasyon, yakıt ve kara kutu kayıtları başlatıldı.", true);
+            hud.innerText = "HUD Aktif: Drag Testi & Yakıt Hazır";
+            speakSpatial("AR Navigasyon ve 0-100 drag kronometresi aktif.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -583,7 +598,27 @@ HTML_TEMPLATE = """
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
-                // ⛽ Yakıt, Menzil & Dinamik ETA (Varış Süresi) Güncelleme
+                // ⏱️ 0-100 Drag Kronometre Simülasyonu
+                if (dragTesting) {
+                    if (currentSpeed < 100) {
+                        currentSpeed += 6; // Simüle edilen ivmelenme
+                        if (currentSpeed > 100) currentSpeed = 100;
+                        let elapsed = ((performance.now() - dragStartTime) / 1000).toFixed(2);
+                        dragHud.innerText = `⏱️ 0-100 Testi: ${currentSpeed} km/s (${elapsed}s)`;
+                        
+                        if (currentSpeed >= 100) {
+                            dragTesting = false;
+                            bestDragTime = elapsed;
+                            dragHud.innerText = `🏁 0-100 TAMAMLANDI: ${bestDragTime} sn!`;
+                            speakSpatial(`0-100 hızlanması ${bestDragTime} saniyede tamamlandı!`, true);
+                            sessionLogs.push(`[${timestamp}] 🏁 0-100 DRAG TESTİ BAŞARILI: ${bestDragTime} sn`);
+                            logTerminal.innerHTML += `<br>[${timestamp}] <b style="color:#00ff66;">🏁 0-100 DRAG BAŞARILI:</b> ${bestDragTime} sn`;
+                            logTerminal.scrollTop = logTerminal.scrollHeight;
+                        }
+                    }
+                }
+
+                // ⛽ Yakıt, Menzil & Dinamik ETA Güncelleme
                 if (step % 50 === 0) {
                     if (currentDistance > 3) {
                         currentDistance -= 3;
@@ -616,19 +651,24 @@ HTML_TEMPLATE = """
             video.style.filter = "none";
             document.getElementById('arHudText').innerText = "Durum: Sistem Kapalı";
             document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | ETA: --";
+            document.getElementById('arDragHud').innerText = "⏱️ 0-100 Drag: Hazır (0.00s)";
+            dragTesting = false;
         }
 
         // --- SÜRÜŞ RAPORLARI & KARA KUTU KAYDETME ---
         async function finishDrivingSession() {
             stopARCamera();
             if(sessionLogs.length === 0) { alert("Kaydedilmiş sürüş verisi bulunamadı!"); return; }
+            if(bestDragTime) {
+                sessionLogs.unshift(`[ÖZET] En İyi 0-100 Drag Süresi: ${bestDragTime} sn`);
+            }
             let sessionData = {
                 time: new Date().toLocaleString(),
                 logs: sessionLogs
             };
             let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
             let data = await res.json();
-            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden kara kutu raporunu indirebilirsin.");
+            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden 0-100 sonuçlarını içeren kara kutu raporunu indirebilirsin.");
             switchTab('drivingTab');
         }
 
