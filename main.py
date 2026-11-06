@@ -143,27 +143,27 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('officeTab')">🏢 Canlı AI Ofisi</button>
-            <button class="tab-btn" onclick="switchTab('wifiScannerTab')">📡 Wi-Fi Scanner (Ruview)</button>
-            <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
-            <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
-            <button class="tab-btn" onclick="switchTab('drivingTab')">⛽ Sürüş Raporları & Kara Kutu</button>
-            <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
-            <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
-            <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
-            <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Wi-Fi Audit</button>
-            <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
-            <button class="tab-btn" onclick="switchTab('dnsTab')">🌍 DNS Dig</button>
-            <button class="tab-btn" onclick="switchTab('sqlmapTab')">⚡ SQLmap</button>
-            <button class="tab-btn" onclick="switchTab('subdomainTab')">🌐 Subdomain</button>
-            <button class="tab-btn" onclick="switchTab('bruteTab')">🔐 Brute</button>
-            <button class="tab-btn" onclick="switchTab('shellTab')">💻 Web Shell</button>
-            <button class="tab-btn" onclick="switchTab('lootingTab')">🏴‍☠️ Looting</button>
-            <button class="tab-btn" onclick="switchTab('analysisTab')">🔍 Secret</button>
-            <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payloads</button>
-            <button class="tab-btn" onclick="switchTab('dataTab')">📁 Archive</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab', this)">🚀 Recon</button>
+            <button class="tab-btn" onclick="switchTab('officeTab', this)">🏢 Canlı AI Ofisi</button>
+            <button class="tab-btn" onclick="switchTab('wifiScannerTab', this)">📡 Wi-Fi Scanner (Ruview)</button>
+            <button class="tab-btn" onclick="switchTab('phishTab', this)">📸 Insta Phishing</button>
+            <button class="tab-btn" onclick="switchTab('lureTab', this)">🎯 GPS & Tracker</button>
+            <button class="tab-btn" onclick="switchTab('arNavTab', this)">🧭 AR Navigasyon & AI</button>
+            <button class="tab-btn" onclick="switchTab('drivingTab', this)">⛽ Sürüş Raporları & Kara Kutu</button>
+            <button class="tab-btn" onclick="switchTab('crackerTab', this)">🔑 Hash Cracker</button>
+            <button class="tab-btn" onclick="switchTab('shellListenerTab', this)">💻 Shell Listener</button>
+            <button class="tab-btn" onclick="switchTab('telegramTab', this)">🤖 Telegram</button>
+            <button class="tab-btn" onclick="switchTab('wifiTab', this)">📶 Wi-Fi Audit</button>
+            <button class="tab-btn" onclick="switchTab('niktoTab', this)">🛡️ Nikto</button>
+            <button class="tab-btn" onclick="switchTab('dnsTab', this)">🌍 DNS Dig</button>
+            <button class="tab-btn" onclick="switchTab('sqlmapTab', this)">⚡ SQLmap</button>
+            <button class="tab-btn" onclick="switchTab('subdomainTab', this)">🌐 Subdomain</button>
+            <button class="tab-btn" onclick="switchTab('bruteTab', this)">🔐 Brute</button>
+            <button class="tab-btn" onclick="switchTab('shellTab', this)">💻 Web Shell</button>
+            <button class="tab-btn" onclick="switchTab('lootingTab', this)">🏴‍☠️ Looting</button>
+            <button class="tab-btn" onclick="switchTab('analysisTab', this)">🔍 Secret</button>
+            <button class="tab-btn" onclick="switchTab('payloadTab', this)">🛠️ Payloads</button>
+            <button class="tab-btn" onclick="switchTab('dataTab', this)">📁 Archive</button>
         </div>
 
         <!-- 1. Keşif -->
@@ -414,11 +414,13 @@ HTML_TEMPLATE = """
         let currentLatG = 0, currentLongG = 0, maxRecordedG = 0;
         let currentInclineDeg = 0, maxRecordedIncline = 0;
 
-        function switchTab(tabId) {
+        function switchTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
+            if (btnElement) {
+                btnElement.classList.add('active');
+            }
             if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
@@ -442,12 +444,10 @@ HTML_TEMPLATE = """
             if(!oCtx) return;
             oCtx.clearRect(0, 0, officeCanvas.width, officeCanvas.height);
 
-            // Ofis Odası Çerçevesi
             oCtx.strokeStyle = "#1e293b";
             oCtx.lineWidth = 2;
             oCtx.strokeRect(30, 20, 840, 340);
 
-            // Masalar
             officeAgents.forEach((ag, idx) => {
                 if(idx > 0 && idx < 4) {
                     oCtx.fillStyle = "#121824";
@@ -456,17 +456,14 @@ HTML_TEMPLATE = """
                     oCtx.strokeRect(ag.x - 35, ag.y - 25, 70, 50);
                 }
 
-                // Karakter Yürüme Mantığı (Hedefe yumuşak geçiş)
                 ag.x += (ag.targetX - ag.x) * 0.06;
                 ag.y += (ag.targetY - ag.y) * 0.06;
 
-                // Karakter Çemberi
                 oCtx.fillStyle = ag.color;
                 oCtx.beginPath();
                 oCtx.arc(ag.x, ag.y, 14, 0, Math.PI * 2);
                 oCtx.fill();
 
-                // İsim ve Anlık Durum
                 oCtx.fillStyle = "#e2e8f0";
                 oCtx.font = "11px Courier New";
                 oCtx.fillText(ag.name, ag.x - 40, ag.y - 30);
@@ -487,7 +484,6 @@ HTML_TEMPLATE = """
             statusText.innerText = "Operasyon Çalışıyor (Ajanlar Görevde)";
             terminal.innerHTML += `<br>[${new Date().toLocaleTimeString()}] 👑 PATRON EMRİ: "${cmd}"`;
 
-            // Ajanları hareket ettir
             officeAgents[1].targetX = 320; officeAgents[1].targetY = 280; officeAgents[1].status = "Android Dersi Kodluyor";
             officeAgents[2].targetX = 520; officeAgents[2].targetY = 280; officeAgents[2].status = "Animasyonlu Web Tasarlıyor";
             officeAgents[3].targetX = 720; officeAgents[3].targetY = 280; officeAgents[3].status = "Sosyal Medyada Pazarlıyor";
@@ -502,7 +498,6 @@ HTML_TEMPLATE = """
             terminal.innerHTML += `<br><b style="color:#00ff66;">[AJANS RAPORU]:</b><br>` + data.output.replace(/\n/g, '<br>');
             terminal.scrollTop = terminal.scrollHeight;
 
-            // İş bitince ajanlar masalarına dönsün
             setTimeout(() => {
                 officeAgents[1].targetX = 280; officeAgents[1].targetY = 190; officeAgents[1].status = "Hazır";
                 officeAgents[2].targetX = 480; officeAgents[2].targetY = 190; officeAgents[2].status = "Hazır";
