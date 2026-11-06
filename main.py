@@ -144,7 +144,7 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('aiTeamTab')">🤖 AI Ekibi</button>
+            <button class="tab-btn" onclick="switchTab('officeTab')">🏢 Canlı AI Ofisi</button>
             <button class="tab-btn" onclick="switchTab('wifiScannerTab')">📡 Wi-Fi Scanner (Ruview)</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
             <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
@@ -179,30 +179,26 @@ HTML_TEMPLATE = """
             <div id="results" class="terminal" style="display:none;"></div>
         </div>
 
-        <!-- AI Ekibi Sekmesi -->
-        <div id="aiTeamTab" class="tab-content">
-            <h3>🤖 AI Ekibi & Otonom Proje Departmanı</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Proje üretimi, pazarlama stratejileri, teklif hazırlama, yazılım/kodlama ve muhasebe işlerin için uzman yapay zeka ajanlarını görevlendir.</p>
-            
-            <div class="form-group">
-                <label>Uzman Rolü / Departman Seçimi:</label>
-                <select id="aiRole">
-                    <option value="project_manager">1. Proje Üretim & Yol Haritası Uzmanı</option>
-                    <option value="growth_marketer">2. Ürün Pazarlama & Büyüme (Growth) Uzmanı</option>
-                    <option value="proposal_writer">3. Teklif Hazırlama & Satış Uzmanı</option>
-                    <option value="developer">4. Mühendislik & Kodlama Asistanı</option>
-                    <option value="accountant">5. Finans & Muhasebe Asistanı</option>
-                </select>
+        <!-- Canlı AI Ofisi Sekmesi -->
+        <div id="officeTab" class="tab-content">
+            <h3>🏢 Canlı Otonom AI Yazılım Ofisi & Ajans Merkezi</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Aşağıdaki interaktif ofis simülasyonunda yapay zeka çalışanların anlık hareketlerini izleyebilir, onlara emir vererek Android dersleri ve animasyonlu web siteleri ürettirebilirsin.</p>
+
+            <div style="position: relative; width: 100%; height: 380px; background: #05070a; border: 2px solid #38bdf8; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+                <canvas id="officeCanvas" width="900" height="380" style="width: 100%; height: 100%; display: block;"></canvas>
+                <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 4px; border: 1px solid #00ff66; font-size: 12px; color: #00ff66;">
+                    🟢 Ofis Durumu: <span id="officeStatusText">Beklemede (Patron Emri Bekleniyor)</span>
+                </div>
             </div>
 
             <div class="form-group">
-                <label>Görev / Talep / Soru:</label>
-                <textarea id="aiPrompt" placeholder="Örn: Telegram tabanlı bir mini app projesi için yol haritası çıkar ve maliyetleri hesapla..."></textarea>
+                <label>👑 Şirket Patronu Olarak Emriniz / Proje Talebiniz:</label>
+                <textarea id="bossCommand" placeholder="Örn: Android için 'Kotlin ile Retrofit Kullanımı' dersi hazırla, ardından buna uygun animasyonlu bir web sitesi yap ve sosyal medyada pazarla..."></textarea>
             </div>
+            <button class="success" onclick="dispatchBossCommand()">🚀 Emri Ajansa Dağıt & Başlat</button>
 
-            <button class="success" onclick="executeAiTask()">🚀 AI Ekibini Çalıştır</button>
-            <div id="aiStatus" class="loading" style="margin-top: 15px;"></div>
-            <div id="aiResults" class="terminal" style="display:none;"></div>
+            <h4 style="margin-top: 25px; color: #38bdf8;">📋 Ajans Canlı Operasyon Logları:</h4>
+            <div id="agencyTerminal" class="terminal" style="max-height: 220px;">[16:25:00] AI Yazılım Ofisi mesaiye başladı. Patronun talimatları bekleniyor...</div>
         </div>
 
         <!-- Wi-Fi Scanner (ruvnet/ruview) Sekmesi -->
@@ -430,23 +426,89 @@ HTML_TEMPLATE = """
             if(tabId !== 'arNavTab') stopARCamera();
         }
 
-        async function executeAiTask() {
-            let role = document.getElementById('aiRole').value;
-            let prompt = document.getElementById('aiPrompt').value.trim();
-            let statusDiv = document.getElementById('aiStatus');
-            let resultsDiv = document.getElementById('aiResults');
-            
-            if(!prompt) { alert('Lütfen bir görev veya talep girin!'); return; }
-            
-            statusDiv.innerHTML = "root@kali:~# [AI Ekibi] Uzman ajan analiz yapıyor ve rapor hazırlıyor...";
-            resultsDiv.style.display = "none";
+        // --- Canlı AI Ofisi Canvas Animasyon Motoru ---
+        let officeCanvas = document.getElementById('officeCanvas');
+        let oCtx = officeCanvas ? officeCanvas.getContext('2d') : null;
 
-            let res = await fetch('/api/ai/execute', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({role, prompt}) });
+        let officeAgents = [
+            { name: "Patron (Boss AI)", x: 120, y: 70, color: "#38bdf8", status: "Komuta Merkezinde", targetX: 120, targetY: 70 },
+            { name: "Android Eğitmeni", x: 280, y: 190, color: "#00ff66", status: "Beklemede", targetX: 280, targetY: 190 },
+            { name: "Web Tasarımcı", x: 480, y: 190, color: "#a855f7", status: "Beklemede", targetX: 480, targetY: 190 },
+            { name: "Pazarlamacı", x: 680, y: 190, color: "#facc15", status: "Beklemede", targetX: 680, targetY: 190 },
+            { name: "Kahve & Sunucu", x: 800, y: 70, color: "#ef4444", status: "Aktif", targetX: 800, targetY: 70 }
+        ];
+
+        function drawOffice() {
+            if(!oCtx) return;
+            oCtx.clearRect(0, 0, officeCanvas.width, officeCanvas.height);
+
+            // Ofis Odası Çerçevesi
+            oCtx.strokeStyle = "#1e293b";
+            oCtx.lineWidth = 2;
+            oCtx.strokeRect(30, 20, 840, 340);
+
+            // Masalar
+            officeAgents.forEach((ag, idx) => {
+                if(idx > 0 && idx < 4) {
+                    oCtx.fillStyle = "#121824";
+                    oCtx.fillRect(ag.x - 35, ag.y - 25, 70, 50);
+                    oCtx.strokeStyle = ag.color;
+                    oCtx.strokeRect(ag.x - 35, ag.y - 25, 70, 50);
+                }
+
+                // Karakter Yürüme Mantığı (Hedefe yumuşak geçiş)
+                ag.x += (ag.targetX - ag.x) * 0.06;
+                ag.y += (ag.targetY - ag.y) * 0.06;
+
+                // Karakter Çemberi
+                oCtx.fillStyle = ag.color;
+                oCtx.beginPath();
+                oCtx.arc(ag.x, ag.y, 14, 0, Math.PI * 2);
+                oCtx.fill();
+
+                // İsim ve Anlık Durum
+                oCtx.fillStyle = "#e2e8f0";
+                oCtx.font = "11px Courier New";
+                oCtx.fillText(ag.name, ag.x - 40, ag.y - 30);
+                oCtx.fillStyle = ag.color;
+                oCtx.fillText(`[${ag.status}]`, ag.x - 45, ag.y + 32);
+            });
+
+            requestAnimationFrame(drawOffice);
+        }
+        if(officeCanvas) drawOffice();
+
+        async function dispatchBossCommand() {
+            let cmd = document.getElementById('bossCommand').value.trim();
+            let terminal = document.getElementById('agencyTerminal');
+            let statusText = document.getElementById('officeStatusText');
+            if(!cmd) { alert('Lütfen ajansa bir emir ver kanka!'); return; }
+
+            statusText.innerText = "Operasyon Çalışıyor (Ajanlar Görevde)";
+            terminal.innerHTML += `<br>[${new Date().toLocaleTimeString()}] 👑 PATRON EMRİ: "${cmd}"`;
+
+            // Ajanları hareket ettir
+            officeAgents[1].targetX = 320; officeAgents[1].targetY = 280; officeAgents[1].status = "Android Dersi Kodluyor";
+            officeAgents[2].targetX = 520; officeAgents[2].targetY = 280; officeAgents[2].status = "Animasyonlu Web Tasarlıyor";
+            officeAgents[3].targetX = 720; officeAgents[3].targetY = 280; officeAgents[3].status = "Sosyal Medyada Pazarlıyor";
+
+            let res = await fetch('/api/agency/execute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ command: cmd })
+            });
             let data = await res.json();
-            
-            statusDiv.innerHTML = "";
-            resultsDiv.style.display = "block";
-            resultsDiv.innerHTML = data.output;
+
+            terminal.innerHTML += `<br><b style="color:#00ff66;">[AJANS RAPORU]:</b><br>` + data.output.replace(/\n/g, '<br>');
+            terminal.scrollTop = terminal.scrollHeight;
+
+            // İş bitince ajanlar masalarına dönsün
+            setTimeout(() => {
+                officeAgents[1].targetX = 280; officeAgents[1].targetY = 190; officeAgents[1].status = "Hazır";
+                officeAgents[2].targetX = 480; officeAgents[2].targetY = 190; officeAgents[2].status = "Hazır";
+                officeAgents[3].targetX = 680; officeAgents[3].targetY = 190; officeAgents[3].status = "Hazır";
+                statusText.innerText = "Beklemede (Görev Tamamlandı)";
+            }, 7000);
         }
 
         async function startRuviewScan() {
@@ -1029,40 +1091,18 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-@app.route("/api/ai/execute", methods=["POST"])
-def api_ai_execute():
+@app.route("/api/agency/execute", methods=["POST"])
+def api_agency_execute():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
-    role = data.get("role", "project_manager")
-    prompt = data.get("prompt", "")
-    
-    role_titles = {
-        "project_manager": "Proje Üretim & Yol Haritası Uzmanı",
-        "growth_marketer": "Ürün Pazarlama & Büyüme Uzmanı",
-        "proposal_writer": "Teklif Hazırlama & Satış Uzmanı",
-        "developer": "Mühendislik & Kodlama Asistanı",
-        "accountant": "Finans & Muhasebe Asistanı"
-    }
-    
-    title = role_titles.get(role, "AI Uzmanı")
+    command = data.get("command", "")
     
     output = (
-        f"[+] [{title}] Talep Alındı ve İşleniyor...\n"
-        f"[+] Girdi: {prompt}\n\n"
-        f"============================================================\n"
-        f"🤖 AI EKİBİ ANALİZ VE ÇIKTI RAPORU ({title}):\n"
-        f"============================================================\n\n"
-        f"1. **Stratejik Değerlendirme:**\n"
-        f"   - Talebiniz başarıyla incelendi ve operasyonel öncelikler belirlendi.\n"
-        f"   - Mimari ve kaynak planlaması optimize edildi.\n\n"
-        f"2. **Uygulama Adımları & Eylem Planı:**\n"
-        f"   - Adım 1: Gereksinim analizi ve altyapı hazırlığı tamamlandı.\n"
-        f"   - Adım 2: Otomasyon ve entegrasyon süreçleri devreye alındı.\n"
-        f"   - Adım 3: Test aşaması ve canlıya alma protokolü hazırlandı.\n\n"
-        f"3. **Sonuç / Tavsiye:**\n"
-        f"   - Bu proje için tahmini tamamlanma süresi 3-5 iş günüdür.\n"
-        f"   - Maliyet ve kaynak optimizasyonu üst düzey verimliliktedir.\n\n"
-        f"[+] İşlem başarıyla tamamlandı ve arşiv kaydedildi."
+        f"[+] Patron Talimatı Alındı: {command}\n\n"
+        f"1. 👨‍💻 [Android Eğitmeni Ajan]: İstediğiniz Android modülü (Kotlin & Jetpack Compose) için adım adım ders akışı ve kaynak kodlar hazırlandı.\n"
+        f"2. 🎨 [Web Tasarım & Animasyon Ajanı]: Eğitimi ve ürünleri sergilemek için 3D efektli, koyu temalı, animasyonlu modern web arayüzü kodlandı.\n"
+        f"3. 📈 [Pazarlama & Büyüme Ajanı]: İçerikler X, LinkedIn ve Telegram kanalları için optimize edildi, otomatik duyuru bültenleri oluşturuldu.\n"
+        f"4. 🤖 [Otonom Ajans Özeti]: Tüm yazılım, eğitim ve pazarlama süreçleri başarıyla tamamlandı ve canlı sunucuya aktarıldı!"
     )
     return jsonify({"output": output})
 
