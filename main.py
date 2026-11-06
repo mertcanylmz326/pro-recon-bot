@@ -143,27 +143,27 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('scanTab', this)">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('officeTab', this)">🏢 Canlı AI Ofisi</button>
-            <button class="tab-btn" onclick="switchTab('wifiScannerTab', this)">📡 Wi-Fi Scanner (Ruview)</button>
-            <button class="tab-btn" onclick="switchTab('phishTab', this)">📸 Insta Phishing</button>
-            <button class="tab-btn" onclick="switchTab('lureTab', this)">🎯 GPS & Tracker</button>
-            <button class="tab-btn" onclick="switchTab('arNavTab', this)">🧭 AR Navigasyon & AI</button>
-            <button class="tab-btn" onclick="switchTab('drivingTab', this)">⛽ Sürüş Raporları & Kara Kutu</button>
-            <button class="tab-btn" onclick="switchTab('crackerTab', this)">🔑 Hash Cracker</button>
-            <button class="tab-btn" onclick="switchTab('shellListenerTab', this)">💻 Shell Listener</button>
-            <button class="tab-btn" onclick="switchTab('telegramTab', this)">🤖 Telegram</button>
-            <button class="tab-btn" onclick="switchTab('wifiTab', this)">📶 Wi-Fi Audit</button>
-            <button class="tab-btn" onclick="switchTab('niktoTab', this)">🛡️ Nikto</button>
-            <button class="tab-btn" onclick="switchTab('dnsTab', this)">🌍 DNS Dig</button>
-            <button class="tab-btn" onclick="switchTab('sqlmapTab', this)">⚡ SQLmap</button>
-            <button class="tab-btn" onclick="switchTab('subdomainTab', this)">🌐 Subdomain</button>
-            <button class="tab-btn" onclick="switchTab('bruteTab', this)">🔐 Brute</button>
-            <button class="tab-btn" onclick="switchTab('shellTab', this)">💻 Web Shell</button>
-            <button class="tab-btn" onclick="switchTab('lootingTab', this)">🏴‍☠️ Looting</button>
-            <button class="tab-btn" onclick="switchTab('analysisTab', this)">🔍 Secret</button>
-            <button class="tab-btn" onclick="switchTab('payloadTab', this)">🛠️ Payloads</button>
-            <button class="tab-btn" onclick="switchTab('dataTab', this)">📁 Archive</button>
+            <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
+            <button class="tab-btn" onclick="switchTab('officeTab')">🏢 Canlı AI Ofisi</button>
+            <button class="tab-btn" onclick="switchTab('wifiScannerTab')">📡 Wi-Fi Scanner (Ruview)</button>
+            <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
+            <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
+            <button class="tab-btn" onclick="switchTab('drivingTab')">⛽ Sürüş Raporları & Kara Kutu</button>
+            <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
+            <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
+            <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
+            <button class="tab-btn" onclick="switchTab('wifiTab')">📶 Wi-Fi Audit</button>
+            <button class="tab-btn" onclick="switchTab('niktoTab')">🛡️ Nikto</button>
+            <button class="tab-btn" onclick="switchTab('dnsTab')">🌍 DNS Dig</button>
+            <button class="tab-btn" onclick="switchTab('sqlmapTab')">⚡ SQLmap</button>
+            <button class="tab-btn" onclick="switchTab('subdomainTab')">🌐 Subdomain</button>
+            <button class="tab-btn" onclick="switchTab('bruteTab')">🔐 Brute</button>
+            <button class="tab-btn" onclick="switchTab('shellTab')">💻 Web Shell</button>
+            <button class="tab-btn" onclick="switchTab('lootingTab')">🏴‍☠️ Looting</button>
+            <button class="tab-btn" onclick="switchTab('analysisTab')">🔍 Secret</button>
+            <button class="tab-btn" onclick="switchTab('payloadTab')">🛠️ Payloads</button>
+            <button class="tab-btn" onclick="switchTab('dataTab')">📁 Archive</button>
         </div>
 
         <!-- 1. Keşif -->
@@ -414,13 +414,12 @@ HTML_TEMPLATE = """
         let currentLatG = 0, currentLongG = 0, maxRecordedG = 0;
         let currentInclineDeg = 0, maxRecordedIncline = 0;
 
-        function switchTab(tabId, btnElement) {
+        function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            if (btnElement) {
-                btnElement.classList.add('active');
-            }
+            event.currentTarget.classList.add('active');
+            
             if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
