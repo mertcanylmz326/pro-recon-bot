@@ -10,6 +10,7 @@ import re
 import csv
 import zipfile
 import hashlib
+import urllib3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify, Response, send_file, session, redirect, url_for
@@ -17,6 +18,9 @@ from datetime import datetime
 from fpdf import FPDF
 import io
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Güncel Telegram Bot Token
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9082287913:AAHLzmrnTb3ZRdB6frpo6IflaZeBuofnbA0")
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -623,7 +627,7 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA (DÜZ STRING OLARAK DÜZELTİLDİ) ---
+# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
 TRACK_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -877,10 +881,74 @@ def api_telegram_send():
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
 
 def red_team_comprehensive_recon(target_url):
-    if not target_url.startswith("http"): target_url = f"https://{target_url}"
-    report = f"root@kali:~# nmap -A {target_url}\n" + "=" * 50 + "\n\n[+] Recon scan completed.\n"
-    record = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "target": target_url, "waf": "Cloudflare WAF", "grade": "B", "files": [], "full_report": report}
-    return report, record
+    if not target_url.startswith("http"): 
+        target_url = f"https://{target_url}"
+    
+    report_lines = [f"root@kali:~# nmap / web-recon --target {target_url}", "=" * 50, ""]
+    waf_detected = "Standard / Cloudflare Yok"
+    grade = "B"
+    discovered_files = []
+    
+    try:
+        start_time = time.time()
+        response = requests.get(target_url, timeout=7, verify=False)
+        latency = round((time.time() - start_time) * 1000, 2)
+        
+        report_lines.append(f"[+] Bağlantı Başarılı! (Yanıt Süresi: {latency} ms)")
+        report_lines.append(f"[+] HTTP Durum Kodu: {response.status_code}")
+        
+        headers = response.headers
+        server = headers.get("Server", "Bilinmiyor / Gizlenmiş")
+        report_lines.append(f"[+] Sunucu (Server): {server}")
+        
+        if "cloudflare" in server.lower() or "cf-ray" in headers:
+            waf_detected = "Cloudflare WAF"
+            report_lines.append("[!] WAF Tespiti: Cloudflare WAF koruması aktif.")
+        elif "akamaighost" in server.lower():
+            waf_detected = "Akamai WAF"
+            report_lines.append("[!] WAF Tespiti: Akamai WAF koruması aktif.")
+        else:
+            report_lines.append("[+] WAF Tespiti: Bilinen bir WAF imzasına rastlanmadı.")
+            
+        report_lines.append("\n--- HTTP Başlıkları (Headers) ---")
+        for k, v in headers.items():
+            report_lines.append(f"  {k}: {v}")
+            
+        report_lines.append("\n--- Kritik Dosya Taraması ---")
+        common_paths = ["/robots.txt", "/sitemap.xml", "/admin", "/login", "/wp-login.php", "/api/v1"]
+        parsed_url = urllib.parse.urlparse(target_url)
+        base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        
+        for path in common_paths:
+            try:
+                test_url = base_origin + path
+                r_test = requests.get(test_url, timeout=3, verify=False)
+                if r_test.status_code in [200, 403]:
+                    discovered_files.append(path)
+                    report_lines.append(f"  [BULUNDU] {path} (Kod: {r_test.status_code})")
+            except:
+                pass
+                
+        if not discovered_files:
+            report_lines.append("  [i] Ortak dizinlerde kritik dosya bulunamadı.")
+            
+        grade = "A" if len(discovered_files) == 0 and waf_detected != "Standard / Cloudflare Yok" else "C"
+        
+    except Exception as e:
+        report_lines.append(f"[-] Hedefe ulaşılamadı veya bağlantı zaman aşımına uğradı: {str(e)}")
+        waf_detected = "Erişilemedi"
+        grade = "F"
+
+    full_report = "\n".join(report_lines)
+    record = {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+        "target": target_url, 
+        "waf": waf_detected, 
+        "grade": grade, 
+        "files": discovered_files, 
+        "full_report": full_report
+    }
+    return full_report, record
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
