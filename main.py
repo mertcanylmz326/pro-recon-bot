@@ -17,7 +17,7 @@ from datetime import datetime
 from fpdf import FPDF
 import io
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9082287913:AAEw9lMwKXfRTGf4LzQiF1UEgLZDHzNuc8o")
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9082287913:AAHLzmrnTb3ZRdB6frpo6IflaZeBuofnbA0")
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 ADMIN_USER = "root1"
